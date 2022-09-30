@@ -6,4 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.8.1", features = ["bevy_sprite"] }
+bevy = { version = "0.8.1", features = ["bevy_sprite", "dynamic"] } # Base Bevy game engine
+# pyo3 = { version = "0.17.1", features = ["auto-initialize"] } # Add this if we end up doing Python <-> Tensorflow
+# tensorflow = "0.19.1" # Add this if we end up using the native Rust bindings for Tensorflow
