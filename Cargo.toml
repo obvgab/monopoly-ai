@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.8.1", features = ["bevy_sprite", "dynamic"] } # Base Bevy game engine
+bevy-inspector-egui = "0.13" # Bevy debug GUI for placement and value meddling
 # pyo3 = { version = "0.17.1", features = ["auto-initialize"] } # Add this if we end up doing Python <-> Tensorflow
 # tensorflow = "0.19.1" # Add this if we end up using the native Rust bindings for Tensorflow
