@@ -15,8 +15,8 @@ impl Plugin for SetupPlugin {
         app
             .insert_resource(WindowDescriptor {
                 title: "Monopoly AI (DEBUG)".into(),
-                width: 650.0,
-                height: 650.0,
+                width: 1300.0,
+                height: 1300.0,
                 ..default()
             }) // 1
             .add_startup_system(create_camera) // 2
