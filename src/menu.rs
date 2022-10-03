@@ -23,13 +23,13 @@ impl Plugin for MainMenuPlugin {
     Defining structs here to allow for queries
     and resource manipulation. Component is the
     C in ECS, and the data is required by Systems
-    [S in ECS]. PlayerCount and MonoRegular are
-    re-used Resources that we only want one of
+    [S in ECS]. MonoRegular is re-used
 */
 #[derive(Component)]
 struct DecreasePlayerCount;
 #[derive(Component)]
 struct IncreasePlayerCount;
+#[derive(Component)]
 struct PlayerCount(i32);
 struct MonoRegular(Handle<Font>);
 
@@ -38,8 +38,8 @@ struct MonoRegular(Handle<Font>);
     (1) Get the font loaded
     (2) Store the amount of players [2-6]
     (3) Spawn an UiNodeBundle [Container]
-    (4) Spawn the increase/decrease button
-    (5) Spawn the text
+    (4) Spawn the increase/decrease/start button
+    (5) Spawn button text
     Ui is horizontally aligned from
     JustifyContent::SpaceEvenly. Any re-used data
     like the font or the player count are considered
@@ -49,8 +49,6 @@ struct MonoRegular(Handle<Font>);
 fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
     let mono = assets.load("fonts/JetBrainsMono-Regular.ttf"); // 1
     commands.insert_resource(MonoRegular(mono.clone()));
-
-    commands.insert_resource(PlayerCount(2)); // 2
 
     commands.spawn_bundle(NodeBundle { // 3
         style: Style {
@@ -71,20 +69,20 @@ fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
             button_parent.spawn_bundle(TextBundle {
                 text: Text::from_section("-", TextStyle {
                     font: mono.clone(),
-                    font_size: 60.0,
+                    font_size: 40.0,
                     color: Color::hex("cdd6f4").unwrap()
                 }),
                 ..default()
             });
         }).insert(DecreasePlayerCount);
         node_parent.spawn_bundle(TextBundle { // 5
-            text: Text::from_section("0", TextStyle { // TODO: Eventually have the text update (probably through a system) with changes
+            text: Text::from_section("2", TextStyle { // TODO: Eventually have the text update (probably through a system) with changes
                 font: mono.clone(),
-                font_size: 60.0,
+                font_size: 40.0,
                 color: Color::hex("cdd6f4").unwrap()
             }),
             ..default()
-        });
+        }).insert(PlayerCount(2)); // 2
         node_parent.spawn_bundle(ButtonBundle { // 4
             color: UiColor(Color::hex("1e1e2e").unwrap()),
             ..default() 
@@ -92,7 +90,7 @@ fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
             button_parent.spawn_bundle(TextBundle {
                 text: Text::from_section("+", TextStyle {
                     font: mono.clone(),
-                    font_size: 60.0,
+                    font_size: 40.0,
                     color: Color::hex("cdd6f4").unwrap()
                 }),
                 ..default()
@@ -102,13 +100,23 @@ fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
 }
 
 fn alter_player_count(
-    mut player_count: ResMut<PlayerCount>,
-    query: Query<(Option<&DecreasePlayerCount>, Option<&IncreasePlayerCount>, &Interaction), (Changed<Interaction>, Or<(With<DecreasePlayerCount>, With<IncreasePlayerCount>)>)>
+    mut player_count_text: Query<&mut Text, With<PlayerCount>>,
+    mut player_count_value: Query<&mut PlayerCount>,
+    query: Query<
+        (Option<&DecreasePlayerCount>, Option<&IncreasePlayerCount>, &Interaction),
+        (Changed<Interaction>, 
+            Or<(With<DecreasePlayerCount>, With<IncreasePlayerCount>
+        )>)>
 ) {
     for (decrease, increase, interaction) in query.iter() {
         match interaction {
-            Interaction::Clicked => { if decrease.is_some() && player_count.0 != 2 { player_count.0 -= 1; } 
-                else if increase.is_some() && player_count.0 != 6 { player_count.0 += 1; } println!("{:?}", player_count.0) }, // TODO: Change text here? Currently just outputing to console
+            Interaction::Clicked => {
+                let mut text_ref = player_count_text.get_single_mut().unwrap();
+                let mut player_count = player_count_value.get_single_mut().unwrap();
+                if decrease.is_some() && player_count.0 != 2 { player_count.0 -= 1; } 
+                else if increase.is_some() && player_count.0 != 6 { player_count.0 += 1; }
+                text_ref.sections[0].value = format!("{}", player_count.0); // * This solution is probably over-engineered
+            },
             Interaction::Hovered | Interaction::None => {}
         }
     }

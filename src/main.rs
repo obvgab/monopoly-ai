@@ -9,9 +9,9 @@ mod menu;
     (1) Choosing game settings and preparing the board
     (2) Rolling the dice and moving a piece [Loop Starts]
     (3) Initiating a tile's action, like paying rent
-        or buying a property
+        or buying a property, action falls down to 4
     (4) Individual player's action, like buying houses
-        or trading properties [Loop Ends]
+        or trading properties, pickup of 3 [Loop Ends, prediction required]
     (5) The end of the game where we can show total
         results and return to the Menu state
 */

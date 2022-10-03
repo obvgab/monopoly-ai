@@ -15,8 +15,8 @@ impl Plugin for SetupPlugin {
         app
             .insert_resource(WindowDescriptor {
                 title: "Monopoly AI (DEBUG)".into(),
-                width: 1300.0,
-                height: 1300.0,
+                width: 650.0,
+                height: 650.0,
                 ..default()
             }) // 1
             .add_startup_system(create_camera) // 2
@@ -24,25 +24,16 @@ impl Plugin for SetupPlugin {
     }
 }
 
-// ? Should we expand more on this component
-/*
-    This component is used as a tag so we can differentiate
-    between different types of cameras when querying
-*/
-#[derive(Component)]
-pub struct PrimaryCamera;
-
 /*
     Create an Orthographic 2d Camera to visualize the scene
     (1) Turn off scaling to prevent uneven sprites
     (2) Placed on Z-layer 10, so we have all of 0-10 to work with
-    (3) Tagged as the PrimaryCamera, as this is where the 2d is rendered
 */
 fn create_camera(mut commands: Commands) {
     let mut camera = Camera2dBundle::new_with_far(10.0); // 2
     camera.projection.scaling_mode = ScalingMode::None; // 1
 
-    commands.spawn_bundle(camera).insert(PrimaryCamera); // 3
+    commands.spawn_bundle(camera); // 3
 }
 
 // ! Replace this later with a texture atlas for character sprites
