@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::WorldInspectorPlugin;
-mod setup;
-mod menu;
+mod setup; mod menu; mod rolling;
 
 // ? Do we need all these game states
 /*
@@ -30,6 +29,7 @@ fn main() {
         .add_plugin(setup::SetupPlugin)
         .add_plugins(DefaultPlugins)
         .add_plugin(menu::MainMenuPlugin)
+        .add_plugin(rolling::RollingPlugin)
         .add_plugin(WorldInspectorPlugin::new())
         .run();
 }

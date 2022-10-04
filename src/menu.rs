@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use crate::{GameState, setup::CurrentPlayer};
 
 pub struct MainMenuPlugin;
 
@@ -12,8 +13,11 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_startup_system(setup_menu) // 1 and 2
-            .add_system(alter_player_count); // 3
+            .add_system_set(SystemSet::on_enter(GameState::Menu)
+                .with_system(setup_menu)) // 1 and 2
+            .add_system_set(SystemSet::on_update(GameState::Menu)
+                .with_system(alter_player_count)
+                .with_system(submit_player_count)); // 3
     }
 }
 
@@ -30,8 +34,14 @@ struct DecreasePlayerCount;
 #[derive(Component)]
 struct IncreasePlayerCount;
 #[derive(Component)]
+struct SubmitPlayerCount;
+
+#[derive(Component)]
 struct PlayerCount(i32);
-struct MonoRegular(Handle<Font>);
+#[derive(Component)]
+struct NodePlayerCount;
+
+pub struct MonoRegular(Handle<Font>);
 
 /*
     Create the main menu for selecting players
@@ -75,14 +85,19 @@ fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
                 ..default()
             });
         }).insert(DecreasePlayerCount);
-        node_parent.spawn_bundle(TextBundle { // 5
-            text: Text::from_section("2", TextStyle { // TODO: Eventually have the text update (probably through a system) with changes
-                font: mono.clone(),
-                font_size: 40.0,
-                color: Color::hex("cdd6f4").unwrap()
-            }),
+        node_parent.spawn_bundle(ButtonBundle { // 4
+            color: UiColor(Color::hex("1e1e2e").unwrap()),
             ..default()
-        }).insert(PlayerCount(2)); // 2
+        }).with_children(|button_parent| {
+            button_parent.spawn_bundle(TextBundle { // 5
+                text: Text::from_section("2", TextStyle {
+                    font: mono.clone(),
+                    font_size: 40.0,
+                    color: Color::hex("cdd6f4").unwrap()
+                }),
+                ..default()
+            }).insert(PlayerCount(2)); // 2
+        }).insert(SubmitPlayerCount);
         node_parent.spawn_bundle(ButtonBundle { // 4
             color: UiColor(Color::hex("1e1e2e").unwrap()),
             ..default() 
@@ -96,9 +111,14 @@ fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
                 ..default()
             });
         }).insert(IncreasePlayerCount);
-    });
+    }).insert(NodePlayerCount);
 }
 
+/*
+    Query for both our increase/decrease player
+    count buttons and gather the player count data
+    Alter the text shown and the stored value
+*/
 fn alter_player_count(
     mut player_count_text: Query<&mut Text, With<PlayerCount>>,
     mut player_count_value: Query<&mut PlayerCount>,
@@ -108,14 +128,42 @@ fn alter_player_count(
             Or<(With<DecreasePlayerCount>, With<IncreasePlayerCount>
         )>)>
 ) {
+    let mut text_ref = player_count_text.get_single_mut().unwrap();
+    let mut player_count = player_count_value.get_single_mut().unwrap();
     for (decrease, increase, interaction) in query.iter() {
         match interaction {
             Interaction::Clicked => {
-                let mut text_ref = player_count_text.get_single_mut().unwrap();
-                let mut player_count = player_count_value.get_single_mut().unwrap();
+                // * We should allow for more than 2-6 for larger game boards
                 if decrease.is_some() && player_count.0 != 2 { player_count.0 -= 1; } 
                 else if increase.is_some() && player_count.0 != 6 { player_count.0 += 1; }
                 text_ref.sections[0].value = format!("{}", player_count.0); // * This solution is probably over-engineered
+            },
+            Interaction::Hovered | Interaction::None => {}
+        }
+    }
+}
+
+/*
+    Submit the player count selected
+    Changing the game state to Rolling
+    a.k.a the start of the game
+    Hide the player count UI
+*/
+fn submit_player_count(
+    mut commands: Commands,
+    player_count_value: Query<&mut PlayerCount>,
+    query: Query<&Interaction, (Changed<Interaction>, With<SubmitPlayerCount>)>,
+    mut node_visibility: Query<&mut Visibility, With<NodePlayerCount>>,
+    mut state: ResMut<State<GameState>>
+) {
+    let player_count = player_count_value.get_single().unwrap();
+    let mut visibility = node_visibility.get_single_mut().unwrap();
+    for interaction in query.iter() {
+        match interaction {
+            Interaction::Clicked => {
+                state.set(GameState::Rolling).unwrap();
+                visibility.is_visible = false;
+                commands.insert_resource(CurrentPlayer(0, player_count.0));
             },
             Interaction::Hovered | Interaction::None => {}
         }

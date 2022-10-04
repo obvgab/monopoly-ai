@@ -15,14 +15,16 @@ impl Plugin for SetupPlugin {
         app
             .insert_resource(WindowDescriptor {
                 title: "Monopoly AI (DEBUG)".into(),
-                width: 1300.0,
-                height: 1300.0,
+                width: 650.0,
+                height: 650.0,
                 ..default()
             }) // 1
             .add_startup_system(create_camera) // 2
             .add_startup_system(load_sprites); // 3 and 4
     }
 }
+
+pub struct CurrentPlayer(pub i32, pub i32);
 
 /*
     Create an Orthographic 2d Camera to visualize the scene
@@ -47,6 +49,7 @@ fn load_sprites(
     mut commands: Commands,
     server: Res<AssetServer>,
 ) {
+    // * We should probably make this dynamic later so we can have larger game board sizes
     let board_image = server.load("board.png");
 
     commands.spawn_bundle(SpriteBundle {
