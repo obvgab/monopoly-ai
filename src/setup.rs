@@ -24,7 +24,9 @@ impl Plugin for SetupPlugin {
     }
 }
 
+// * Make these full structs with names, .0 and .1 are not descriptive/readable
 pub struct CurrentPlayer(pub i32, pub i32);
+pub struct VisualMode(pub bool); // Eventually for disabling visual effects for training the AI
 
 /*
     Create an Orthographic 2d Camera to visualize the scene

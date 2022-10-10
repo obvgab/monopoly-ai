@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_inspector_egui::Inspectable;
 
 // ! Move this later when we define the other states
 pub enum Card {
@@ -24,12 +25,25 @@ pub enum Card {
     Properties are different entities, as we might need to index them separately
     for when another player lands on them
 */
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct Money(pub i32); // 1
-#[derive(Component)]
-pub struct Tile(pub i32); // 2
-#[derive(Component)]
+#[derive(Component, Inspectable)]
+pub struct TokenPosition(pub i32); // 2
+#[derive(Component, Inspectable)]
 // * We might be able to transition to using raw Entity IDs
 pub struct PlayerId(pub i32); // 3
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct HeldJailFree(pub i32); // 4
+
+/*
+    The actual player bundle that contains
+    the above components. This allows for
+    easy insertions via .insert_bundle()
+*/
+#[derive(Bundle)]
+pub struct PlayerBundle {
+    pub money: Money,
+    pub tile: TokenPosition,
+    pub player_id: PlayerId,
+    pub held_jail_free: HeldJailFree
+}

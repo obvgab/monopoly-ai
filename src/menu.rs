@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{GameState, setup::CurrentPlayer};
+use crate::{GameState, setup::CurrentPlayer, player::*};
 
 pub struct MainMenuPlugin;
 
@@ -148,6 +148,7 @@ fn alter_player_count(
     Changing the game state to Rolling
     a.k.a the start of the game
     Hide the player count UI
+    Spawn all the player entities
 */
 fn submit_player_count(
     mut commands: Commands,
@@ -161,9 +162,19 @@ fn submit_player_count(
     for interaction in query.iter() {
         match interaction {
             Interaction::Clicked => {
-                state.set(GameState::Rolling).unwrap();
                 visibility.is_visible = false;
                 commands.insert_resource(CurrentPlayer(0, player_count.0));
+                for i in 0..player_count.0 {
+                    commands.spawn().insert_bundle(
+                        PlayerBundle {
+                            money: Money(0),
+                            tile: TokenPosition(0),
+                            player_id: PlayerId(i),
+                            held_jail_free: HeldJailFree(0)
+                        }
+                    ).insert(Name::new(format!("Player {}", i)));
+                }
+                state.set(GameState::Rolling).unwrap();
             },
             Interaction::Hovered | Interaction::None => {}
         }

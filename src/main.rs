@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_inspector_egui::WorldInspectorPlugin;
-mod setup; mod menu; mod rolling;
+use bevy_inspector_egui::{WorldInspectorPlugin, RegisterInspectable};
+mod setup; mod menu; mod rolling; mod player; mod tile;
 
 // ? Do we need all these game states
 /*
@@ -30,6 +30,25 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(menu::MainMenuPlugin)
         .add_plugin(rolling::RollingPlugin)
+        .add_plugin(tile::TilePlugin)
+        // * Debug instructions
         .add_plugin(WorldInspectorPlugin::new())
+
+        // Player Debug
+        .register_inspectable::<player::Money>()
+        .register_inspectable::<player::TokenPosition>()
+        .register_inspectable::<player::PlayerId>()
+        .register_inspectable::<player::HeldJailFree>()
+
+        // Tile Debug
+        .register_inspectable::<tile::TileAttribute>()
+        .register_inspectable::<tile::TilePosition>()
+        .register_inspectable::<tile::TileType>()
+        .register_inspectable::<tile::Owner>()
+        .register_inspectable::<tile::PairId>()
+        .register_inspectable::<tile::Cost>()
+        .register_inspectable::<tile::Tax>()
+        .register_inspectable::<tile::Tier>()
+        
         .run();
 }
