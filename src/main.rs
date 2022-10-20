@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::{WorldInspectorPlugin, RegisterInspectable};
-mod setup; mod menu; mod rolling; mod player; mod tile;
+mod setup; mod menu; mod rolling; mod player; mod tile; mod action;
 
-// ? Do we need all these game states
 /*
     All the different stages of the game
     (1) Choosing game settings and preparing the board
@@ -31,6 +30,8 @@ fn main() {
         .add_plugin(menu::MainMenuPlugin)
         .add_plugin(rolling::RollingPlugin)
         .add_plugin(tile::TilePlugin)
+        .add_plugin(action::ActionPlugin)
+
         // * Debug instructions
         .add_plugin(WorldInspectorPlugin::new())
 
@@ -39,6 +40,7 @@ fn main() {
         .register_inspectable::<player::TokenPosition>()
         .register_inspectable::<player::PlayerId>()
         .register_inspectable::<player::HeldJailFree>()
+        .register_inspectable::<player::IsComputer>()
 
         // Tile Debug
         .register_inspectable::<tile::TileAttribute>()
@@ -49,6 +51,6 @@ fn main() {
         .register_inspectable::<tile::Cost>()
         .register_inspectable::<tile::Tax>()
         .register_inspectable::<tile::Tier>()
-        
+
         .run();
 }

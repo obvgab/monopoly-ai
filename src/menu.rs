@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{GameState, setup::CurrentPlayer, player::*};
+use crate::{GameState, setup::CurrentPlayer, player::{PlayerBundle, Money, TokenPosition, PlayerId, HeldJailFree, IsComputer}};
 
 pub struct MainMenuPlugin;
 
@@ -122,20 +122,16 @@ fn setup_menu(mut commands: Commands, assets: Res<AssetServer>) {
 fn alter_player_count(
     mut player_count_text: Query<&mut Text, With<PlayerCount>>,
     mut player_count_value: Query<&mut PlayerCount>,
-    query: Query<
-        (Option<&DecreasePlayerCount>, Option<&IncreasePlayerCount>, &Interaction),
-        (Changed<Interaction>, 
-            Or<(With<DecreasePlayerCount>, With<IncreasePlayerCount>
-        )>)>
+    query: Query<(AnyOf<(&DecreasePlayerCount, &IncreasePlayerCount)>, &Interaction), Changed<Interaction>>
 ) {
     let mut text_ref = player_count_text.get_single_mut().unwrap();
     let mut player_count = player_count_value.get_single_mut().unwrap();
-    for (decrease, increase, interaction) in query.iter() {
+    for (change, interaction) in query.iter() {
         match interaction {
             Interaction::Clicked => {
                 // * We should allow for more than 2-6 for larger game boards
-                if decrease.is_some() && player_count.0 != 2 { player_count.0 -= 1; } 
-                else if increase.is_some() && player_count.0 != 6 { player_count.0 += 1; }
+                if change.0.is_some() && player_count.0 != 2 { player_count.0 -= 1; } 
+                else if change.1.is_some() && player_count.0 != 6 { player_count.0 += 1; }
                 text_ref.sections[0].value = format!("{}", player_count.0); // * This solution is probably over-engineered
             },
             Interaction::Hovered | Interaction::None => {}
@@ -167,10 +163,11 @@ fn submit_player_count(
                 for i in 0..player_count.0 {
                     commands.spawn().insert_bundle(
                         PlayerBundle {
-                            money: Money(0),
-                            tile: TokenPosition(0),
+                            money: Money(1500),
+                            token_position: TokenPosition(0, 0),
                             player_id: PlayerId(i),
-                            held_jail_free: HeldJailFree(0)
+                            held_jail_free: HeldJailFree(0),
+                            is_computer: IsComputer(false)
                         }
                     ).insert(Name::new(format!("Player {}", i)));
                 }

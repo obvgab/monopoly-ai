@@ -4,7 +4,7 @@ pub struct SetupPlugin;
 
 /*
     Implimenting the Plugin trait for SetupPlugin
-    When loaded, SetupPlugin will 
+    When loaded, SetupPlugin will
     (1) Prepare the window
     (2) Create the camera
     (3) Load assets
@@ -12,21 +12,45 @@ pub struct SetupPlugin;
 */
 impl Plugin for SetupPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(WindowDescriptor {
-                title: "Monopoly AI (DEBUG)".into(),
-                width: 650.0,
-                height: 650.0,
-                ..default()
-            }) // 1
-            .add_startup_system(create_camera) // 2
-            .add_startup_system(load_sprites); // 3 and 4
+        app.insert_resource(WindowDescriptor {
+            title: "Monopoly AI (DEBUG)".into(),
+            width: 650.0,
+            height: 650.0,
+            ..default()
+        }) // 1
+        .add_startup_system(create_camera) // 2
+        .add_startup_system(load_sprites); // 3 and 4
     }
 }
 
-// * Make these full structs with names, .0 and .1 are not descriptive/readable
-pub struct CurrentPlayer(pub i32, pub i32);
-pub struct VisualMode(pub bool); // Eventually for disabling visual effects for training the AI
+/*
+    Resources to track game values and settings
+    (1) Universal player data
+        .0 Current player index
+        .1 Total players in the game
+    (2) The settings of the game chosen with the menu
+        .0 Visual Mode (Faster, for training the AI)
+        .1 Debt (Ability to go into debt. (!) Being at 0 cash means backrupt [Correlate .2])
+        .2 Selling (Removes the ability to sell houses/hotels. (!) Being at 0 cash means backrupt [Correlate .1])
+        .3 Purchasing Homes (Build structures. (!) Less complex game [Implies (!) .2])
+        .4 Chance Tiles (Chance Tile Actions. (!) Less complex game)
+        .5 Community Chest Tiles (Community Chest Actions/Cards. (!) Less complex game)
+        .6 Tax Tiles (Taxing on non-owned tiles. (!) Less complex game)
+        .7 Jail (Going to jail, out of jail free cards, and triple doubles. (!) Less complex game)
+        .8 Auctioning (Auction a property when a player decides not to buy. (!) Less complex game)
+*/
+pub struct CurrentPlayer(pub i32, pub i32); // 1
+pub struct GameSettings(
+    pub bool,
+    pub bool,
+    pub bool,
+    pub bool,
+    pub bool,
+    pub bool,
+    pub bool,
+    pub bool,
+    pub bool,
+); // 2
 
 /*
     Create an Orthographic 2d Camera to visualize the scene
@@ -47,10 +71,7 @@ fn create_camera(mut commands: Commands) {
     After running at startup, Handle<>s to the common assets will
     be stored in Resources.
 */
-fn load_sprites(
-    mut commands: Commands,
-    server: Res<AssetServer>,
-) {
+fn load_sprites(mut commands: Commands, server: Res<AssetServer>) {
     // * We should probably make this dynamic later so we can have larger game board sizes
     let board_image = server.load("board.png");
 
@@ -60,3 +81,4 @@ fn load_sprites(
         ..default()
     });
 }
+

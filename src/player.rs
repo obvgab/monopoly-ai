@@ -1,18 +1,6 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 
-// ! Move this later when we define the other states
-pub enum Card {
-    JailFree, // Holdable, Out of Jail Free
-    Jail, // Go to Jail
-    GoTile, // Go to Tile, $ GO
-    Tile, // Go to Tile, !$ GO
-    MultiFine, // Multiplying -$
-    Fine, // Single -$
-    MultiCollect, // Multiplying +$
-    Collect, // Single +$
-}
-
 /*
     All the tags/components for Player entities
     Everything is considered public, as most
@@ -28,12 +16,13 @@ pub enum Card {
 #[derive(Component, Inspectable)]
 pub struct Money(pub i32); // 1
 #[derive(Component, Inspectable)]
-pub struct TokenPosition(pub i32); // 2
+pub struct TokenPosition(pub i32, pub i32); // 2
 #[derive(Component, Inspectable)]
-// * We might be able to transition to using raw Entity IDs
 pub struct PlayerId(pub i32); // 3
 #[derive(Component, Inspectable)]
 pub struct HeldJailFree(pub i32); // 4
+#[derive(Component, Inspectable)]
+pub struct IsComputer(pub bool);
 
 /*
     The actual player bundle that contains
@@ -43,7 +32,8 @@ pub struct HeldJailFree(pub i32); // 4
 #[derive(Bundle)]
 pub struct PlayerBundle {
     pub money: Money,
-    pub tile: TokenPosition,
+    pub token_position: TokenPosition,
     pub player_id: PlayerId,
-    pub held_jail_free: HeldJailFree
+    pub held_jail_free: HeldJailFree,
+    pub is_computer: IsComputer
 }
