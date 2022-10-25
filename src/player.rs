@@ -23,6 +23,8 @@ pub struct PlayerId(pub i32); // 3
 pub struct HeldJailFree(pub i32); // 4
 #[derive(Component, Inspectable)]
 pub struct IsComputer(pub bool);
+#[derive(Component, Inspectable)]
+pub struct IsJailed(pub bool);
 
 /*
     The actual player bundle that contains
@@ -35,5 +37,6 @@ pub struct PlayerBundle {
     pub token_position: TokenPosition,
     pub player_id: PlayerId,
     pub held_jail_free: HeldJailFree,
-    pub is_computer: IsComputer
+    pub is_computer: IsComputer,
+    pub is_jailed: IsJailed
 }

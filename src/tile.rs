@@ -1,6 +1,6 @@
 use crate::{
     action::{Card, FallThroughAction, Multi},
-    player::{Money, PlayerId, TokenPosition},
+    player::{Money, PlayerId, TokenPosition, IsJailed},
     setup::CurrentPlayer,
     GameState,
 };
@@ -22,7 +22,8 @@ pub enum TileAttribute {
     CommunityChest,
     GoToJail,
     Tax,
-    Go,
+    GoOrFree,
+    Jail,
     Property,
 }
 
@@ -70,11 +71,11 @@ impl Default for TileBundle {
 }
 
 fn tile_action(
-    mut current_player: ResMut<CurrentPlayer>,
+    current_player: Res<CurrentPlayer>,
     mut state: ResMut<State<GameState>>,
     mut fall_through: ResMut<FallThroughState>,
     mut player_tile: Query<
-        (&mut Money, &TokenPosition, &PlayerId),
+        (&mut Money, &TokenPosition, &PlayerId, &IsJailed),
         (With<PlayerId>, Without<TilePosition>),
     >, // Make sure we aren't getting a tile
     active_tile: Query<
@@ -83,21 +84,13 @@ fn tile_action(
     >,
 ) {
     // Get the current player attributes
-    let (mut money, token_position, player_id) = player_tile
-        .iter_mut()
-        .filter(|x| x.2 .0 == current_player.0)
-        .nth(0)
-        .unwrap();
-    let (position, tile, owner, pair, tax, tier) = active_tile
-        .iter()
-        .filter(|x| x.0 .0 == token_position.0)
-        .nth(0)
-        .unwrap();
+    let (mut money, token_position, player_id, is_jailed) = player_tile.iter_mut().find(|x| x.2.0 == current_player.0).unwrap();
+    let (position, tile, owner, pair, tax, tier) = active_tile.iter().find(|x| x.0.0 == token_position.0).unwrap();
 
-    if token_position.0 < token_position.1 {
-        money.0 += 200;
-    } // Check if we passed Go or are on Go
+    if token_position.0 < token_position.1 { money.0 += 200; } // Check if we passed Go or are on Go
+    if is_jailed.0 { /* Jail FallThroughAction */ }
     if tile.0 == TileAttribute::Property {
+        println!(" Property index: {}, Owner: {}", position.0, owner.0);
         if owner.0 == -1 {
             fall_through.0 = FallThroughAction::Purchase;
         } else if owner.0 != player_id.0 {
@@ -123,9 +116,13 @@ fn tile_action(
 
             if money.0 - tax_price < 0 {
                 fall_through.0 = FallThroughAction::Debt;
+                fall_through.3 = Multi::Player; // Using the multi tag here to give money after
                 fall_through.1 = tax_price;
             } else {
                 money.0 -= tax_price;
+                let mut tax_collector = player_tile.iter_mut().find(|x| x.2.0 == owner.0).unwrap();
+                tax_collector.0.0 += tax_price;
+                println!("  Owner money: {}, Rent: {}", tax_collector.0.0, tax_price);
             }
         }
     } else if tile.0 == TileAttribute::Tax {
@@ -134,10 +131,22 @@ fn tile_action(
             fall_through.1 = tax.0;
         } else {
             money.0 -= tax.0;
+            println!(" Tax Index: {}, Taxed: {}", position.0, tax.0);
         }
+    } else if tile.0 == TileAttribute::Chance {
+        /* Cast random number to enum for all Chance cards */
+
+    } else if tile.0 == TileAttribute::CommunityChest {
+        /* Cast random number to enum for all Chest cards */
+
+    } else if tile.0 == TileAttribute::GoToJail {
+        /* Send to the jail space, then do FallThroughAction */
+
     }
 
-    state.set(GameState::TileAction).unwrap();
+    // Else we are on Go or Free Parking, so we can skip
+    // ! This will infinite loop right now when all tiles are bought, as we don't handle debt
+    state.set(GameState::PlayerAction).unwrap();
 }
 
 // * Eventually replace this with code that will allow us to have dynamic game board sizes
@@ -148,7 +157,7 @@ fn spawn_tiles(mut commands: Commands) {
             tile_container
                 .spawn_bundle(TileBundle {
                     position: TilePosition(0),
-                    tile: TileType(TileAttribute::Go),
+                    tile: TileType(TileAttribute::GoOrFree),
                     ..default()
                 })
                 .insert(Name::new("Tile GO"));
@@ -158,6 +167,7 @@ fn spawn_tiles(mut commands: Commands) {
                     .spawn_bundle(TileBundle {
                         position: TilePosition(i),
                         tax: Tax(i * 100, 0, 0, 0, 0, 0, 0),
+                        cost: Cost(100, 0, 0, 0),
                         ..default()
                     })
                     .insert(Name::new(format!("Tile {}", i)));

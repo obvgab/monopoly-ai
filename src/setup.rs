@@ -29,28 +29,30 @@ impl Plugin for SetupPlugin {
         .0 Current player index
         .1 Total players in the game
     (2) The settings of the game chosen with the menu
-        .0 Visual Mode (Faster, for training the AI)
+        .0 Visual Mode (Faster when off, for training the AI)
         .1 Debt (Ability to go into debt. (!) Being at 0 cash means backrupt [Correlate .2])
-        .2 Selling (Removes the ability to sell houses/hotels. (!) Being at 0 cash means backrupt [Correlate .1])
-        .3 Purchasing Homes (Build structures. (!) Less complex game [Implies (!) .2])
-        .4 Chance Tiles (Chance Tile Actions. (!) Less complex game)
-        .5 Community Chest Tiles (Community Chest Actions/Cards. (!) Less complex game)
-        .6 Tax Tiles (Taxing on non-owned tiles. (!) Less complex game)
+        .2 Sell (Removes the ability to sell houses/hotels. (!) Being at 0 cash means backrupt [Correlate .1])
+        .3 Homes (Build structures. (!) Less complex game [Implies (!) .2])
+        .4 Chance (Chance Tile Actions. (!) Less complex game)
+        .5 Chest (Community Chest Actions/Cards. (!) Less complex game)
+        .6 Tax (Taxing on non-owned tiles. (!) Less complex game)
         .7 Jail (Going to jail, out of jail free cards, and triple doubles. (!) Less complex game)
-        .8 Auctioning (Auction a property when a player decides not to buy. (!) Less complex game)
+        .8 Auction (Auction a property when a player decides not to buy. (!) Less complex game)
 */
 pub struct CurrentPlayer(pub i32, pub i32); // 1
-pub struct GameSettings(
-    pub bool,
-    pub bool,
-    pub bool,
-    pub bool,
-    pub bool,
-    pub bool,
-    pub bool,
-    pub bool,
-    pub bool,
-); // 2
+impl Default for CurrentPlayer { fn default() -> Self { CurrentPlayer { 0: 0, 1: 2 } } }
+#[derive(Default)]
+pub struct GameSettings( // 2
+    pub bool, // .0
+    pub bool, // .1
+    pub bool, // .2
+    pub bool, // .3
+    pub bool, // .4
+    pub bool, // .5
+    pub bool, // .6
+    pub bool, // .7
+    pub bool, // .8
+);
 
 /*
     Create an Orthographic 2d Camera to visualize the scene

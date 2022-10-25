@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.8.1", features = ["bevy_sprite", "dynamic"] } # Base Bevy game engine
+bevy_egui = "0.16.1" # Required by the inspector and generally easier to program ui
 bevy-inspector-egui = "0.13" # Bevy debug GUI for placement and value meddling
 rand = "0.8.5" # Random number generation
 # Eventually import Tensorflow rust bindings so we can load our model
