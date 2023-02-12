@@ -18,11 +18,12 @@ fn start_roll(
     mut players: Query<(&PlayerId, &mut TokenPosition), With<PlayerId>>,
     mut state: ResMut<State<GameState>>
 ) {
-    let dice = (rand::thread_rng().gen_range(1..7), rand::thread_rng().gen_range(1..7));
+    // Handle being in Jail
+    let dice = (rand::thread_rng().gen_range(1..=6), rand::thread_rng().gen_range(1..=6));
     println!("Player index: {}, Total players: {}, Random Roll: {:?}", current_player.0, current_player.1, dice);
     let mut value = players.iter_mut().find(|x| x.0.0 == current_player.0).unwrap().1;
     value.1 = value.0;
     value.0 += dice.0 + dice.1;
-    if value.0 >= total_tiles.0 - 1 { value.0 = value.0 - 39; }
+    if value.0 >= total_tiles.0 - 1 { value.0 %= total_tiles.0 - 1; }
     state.set(GameState::TileAction).unwrap();
 }

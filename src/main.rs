@@ -51,6 +51,6 @@ fn main() {
         .register_inspectable::<tile::Cost>()
         .register_inspectable::<tile::Tax>()
         .register_inspectable::<tile::Tier>()
-
+        
         .run();
 }

@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy::{prelude::*, render::{camera::ScalingMode/* , settings::WgpuSettings */}};
 
 pub struct SetupPlugin;
 
@@ -18,6 +18,10 @@ impl Plugin for SetupPlugin {
             height: 650.0,
             ..default()
         }) // 1
+        //.insert_resource(WgpuSettings {
+        //        backends: None,
+        //        ..default()
+        //    })
         .add_startup_system(create_camera) // 2
         .add_startup_system(load_sprites); // 3 and 4
     }
@@ -30,8 +34,8 @@ impl Plugin for SetupPlugin {
         .1 Total players in the game
     (2) The settings of the game chosen with the menu
         .0 Visual Mode (Faster when off, for training the AI)
-        .1 Debt (Ability to go into debt. (!) Being at 0 cash means backrupt [Correlate .2])
-        .2 Sell (Removes the ability to sell houses/hotels. (!) Being at 0 cash means backrupt [Correlate .1])
+        .1 Debt (Ability to go into debt. (!) Being at 0 cash means backrupt)
+        .2 Sell (Removes the ability to sell houses/hotels. (!) Less complex actions)
         .3 Homes (Build structures. (!) Less complex game [Implies (!) .2])
         .4 Chance (Chance Tile Actions. (!) Less complex game)
         .5 Chest (Community Chest Actions/Cards. (!) Less complex game)

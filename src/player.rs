@@ -14,9 +14,9 @@ use bevy_inspector_egui::Inspectable;
     for when another player lands on them
 */
 #[derive(Component, Inspectable)]
-pub struct Money(pub i32); // 1
+pub struct Money { pub worth: i32 } // 1
 #[derive(Component, Inspectable)]
-pub struct TokenPosition(pub i32, pub i32); // 2
+pub struct TokenPosition { pub current: i32, pub previous: i32 } // 2
 #[derive(Component, Inspectable)]
 pub struct PlayerId(pub i32); // 3
 #[derive(Component, Inspectable)]
