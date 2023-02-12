@@ -1,9 +1,4 @@
-use crate::{
-    action::{Card, FallThroughAction, Multi},
-    player::{Money, PlayerId, TokenPosition, IsJailed},
-    setup::CurrentPlayer,
-    GameState,
-};
+use crate::{ *, action::*, player::*, setup::* };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
 use rand::Rng;
@@ -14,12 +9,11 @@ pub struct TilePlugin;
 impl Plugin for TilePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(spawn_tiles)
-            .add_system_set(SystemSet::on_update(GameState::TileAction).with_system(tile_action));
     }
 }
 
-#[derive(Inspectable, PartialEq)]
-pub enum TileAttribute {
+#[derive(Component, Inspectable, PartialEq)]
+pub enum TileType {
     Chance,
     CommunityChest,
     GoToJail,
@@ -28,31 +22,35 @@ pub enum TileAttribute {
     Jail,
     Property,
 }
+#[derive(Component, Inspectable, PartialEq)]
+pub enum Tier {
+    Hotel,
+    House(u32),
+    Base,
+    Mortgage
+}
+#[derive(Component, Inspectable)]
+pub struct Cost {
+    pub initial: i32,
+    pub house: i32,
+    pub hotel: i32,
+    pub refund: i32
+}
+#[derive(Component, Inspectable)]
+pub struct Owner { pub id: Entity }
 
 #[derive(Component, Inspectable)]
-pub struct TilePosition(pub i32); // Effectively TileId too, as we can't have duplicate tiles
+pub struct TilePosition(pub i32); // Not using Entity so we can have numerical position
 #[derive(Component, Inspectable)]
-pub struct TileType(pub TileAttribute);
-#[derive(Component, Inspectable)]
-pub struct Owner(pub PlayerId); // Who owns the property, -1 for none/unownable
-#[derive(Component, Inspectable)]
-pub struct PairId(pub i32); // What properties are in the same set, -1 for none
-#[derive(Component, Inspectable)]
-pub struct Cost(pub i32, pub i32, pub i32, pub i32); // Cost of a property, house multiple, hotel cost, mortgage refund (10% to buy back)
+pub struct PairId(pub i32);
 #[derive(Component, Inspectable)]
 pub struct Tax(pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32); // Base tax, Pair tax, 1 home, 2 homes, 3 homes, 4 homes, hotel (50% sell value)
-#[derive(Component, Inspectable)]
-pub struct Tier(pub i32); // How many houses/hotels, 0 default, -1 for mortgage
 
-pub struct TotalTiles(pub i32);
-pub struct FallThroughState(pub FallThroughAction, pub i32, pub Card, pub Multi);
 
 #[derive(Bundle)]
 pub struct TileBundle {
     pub position: TilePosition,
     pub tile: TileType,
-    pub owner: PlayerId,
-    pub pair: PairId,
     pub cost: Cost,
     pub tax: Tax,
     pub tier: Tier,
@@ -62,16 +60,14 @@ impl Default for TileBundle {
     fn default() -> TileBundle {
         TileBundle {
             position: TilePosition(0),
-            tile: TileType(TileAttribute::Property),
-            owner: PlayerId(-1),
-            pair: PairId(-1),
-            cost: Cost(0, 0, 0, 0),
+            tile: TileType::Property,
+            cost: Cost { initial: 0, house: 0, hotel: 0, refund: 0 },
             tax: Tax(0, 0, 0, 0, 0, 0, 0),
-            tier: Tier(0),
+            tier: Tier::Base,
         }
     }
 }
-
+//チェンソーマン
 fn tile_action(
     current_player: Res<CurrentPlayer>,
     mut state: ResMut<State<GameState>>,
@@ -162,7 +158,7 @@ fn spawn_tiles(mut commands: Commands) {
             tile_container
                 .spawn_bundle(TileBundle {
                     position: TilePosition(0),
-                    tile: TileType(TileAttribute::GoOrFree),
+                    tile: TileType::GoOrFree,
                     ..default()
                 })
                 .insert(Name::new("Tile GO"));
@@ -181,13 +177,11 @@ fn spawn_tiles(mut commands: Commands) {
                 tile_container
                     .spawn_bundle(TileBundle {
                         position: TilePosition(i),
-                        tile: TileType(TileAttribute::Chance),
+                        tile: TileType::Chance,
                         ..default()
                     })
                     .insert(Name::new(format!("Tile CARD {}", i)));
             }
         })
         .insert(Name::new("TileContainer"));
-
-    commands.insert_resource(TotalTiles(40));
 }

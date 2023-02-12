@@ -18,13 +18,14 @@ pub struct Money { pub worth: i32 } // 1
 #[derive(Component, Inspectable)]
 pub struct TokenPosition { pub current: i32, pub previous: i32 } // 2
 #[derive(Component, Inspectable)]
-pub struct PlayerId(pub i32); // 3
-#[derive(Component, Inspectable)]
 pub struct HeldJailFree(pub i32); // 4
+
 #[derive(Component, Inspectable)]
-pub struct IsComputer(pub bool);
+#[component(storage="SparseSet")]
+pub struct Computer;
 #[derive(Component, Inspectable)]
-pub struct IsJailed(pub bool);
+#[component(storage="SparseSet")]
+pub struct Jailed;
 
 /*
     The actual player bundle that contains
@@ -35,8 +36,5 @@ pub struct IsJailed(pub bool);
 pub struct PlayerBundle {
     pub money: Money,
     pub token_position: TokenPosition,
-    pub player_id: PlayerId,
-    pub held_jail_free: HeldJailFree,
-    pub is_computer: IsComputer,
-    pub is_jailed: IsJailed
+    pub held_jail_free: HeldJailFree
 }

@@ -2,24 +2,31 @@ use bevy::prelude::*;
 use bevy_inspector_egui::{WorldInspectorPlugin, RegisterInspectable};
 mod setup; mod menu; mod rolling; mod player; mod tile; mod action;
 
-/*
-    All the different stages of the game
-    (1) Choosing game settings and preparing the board
-    (2) Rolling the dice and moving a piece [Loop Starts]
-    (3) Initiating a tile's action, like paying rent
-        or buying a property, action falls down to 4
-    (4) Individual player's action, like buying houses
-        or trading properties, pickup of 3 [Loop Ends, prediction required]
-    (5) The end of the game where we can show total
-        results and return to the Menu state
-*/
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
-    Menu, // 1
-    Rolling, // 2
-    TileAction, // 3
-    PlayerAction, // 4
-    Results // 5
+    Menu,
+    Rolling,
+    Action,
+    Results
+}
+
+#[derive(Default)]
+pub struct Players {
+    ids: Vec<Entity>,
+    current: usize
+}
+
+#[derive(Default)]
+pub struct GameSettings {
+    pub visual: bool,
+    pub debt: bool,
+    pub sell: bool,
+    pub homes: bool,
+    pub chance: bool,
+    pub chest: bool,
+    pub tax: bool,
+    pub jail: bool,
+    pub auction: bool
 }
 
 fn main() {
@@ -38,9 +45,8 @@ fn main() {
         // Player Debug
         .register_inspectable::<player::Money>()
         .register_inspectable::<player::TokenPosition>()
-        .register_inspectable::<player::PlayerId>()
         .register_inspectable::<player::HeldJailFree>()
-        .register_inspectable::<player::IsComputer>()
+        .register_inspectable::<player::Computer>()
 
         // Tile Debug
         .register_inspectable::<tile::TileAttribute>()

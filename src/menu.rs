@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-use crate::{GameState, setup::{CurrentPlayer, GameSettings}, player::{PlayerBundle, Money, TokenPosition, PlayerId, HeldJailFree, IsComputer, IsJailed}};
+use crate::{*, setup::*, player::*};
 
 pub struct MainMenuPlugin;
 
@@ -15,7 +15,7 @@ impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<GameSettings>()
-            .init_resource::<CurrentPlayer>()
+            .init_resource::<Players>()
             .add_plugin(EguiPlugin)
             .add_system_set(SystemSet::on_update(GameState::Menu).with_system(main_menu));
     }
@@ -24,50 +24,54 @@ impl Plugin for MainMenuPlugin {
 // ! Testing with egui right now, might be a bit easier to read and re-use
 fn main_menu(
     mut ctx: ResMut<EguiContext>,
-    mut player_count: ResMut<CurrentPlayer>,
+    mut players: ResMut<Players>,
     mut settings: ResMut<GameSettings>,
     mut state: ResMut<State<GameState>>,
     mut commands: Commands
 ) {
+    let mut player_count = 0;
+
     egui::Area::new("MainMenu")
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx.ctx_mut(), |ui| {
             ui.horizontal(|horz| {
                 // * Eventually change this for larger board sizes
                 if horz.add(egui::Button::new("-")).clicked() {
-                    if player_count.1 != 2 { player_count.1 -= 1; }
+                    if player_count != 2 { player_count -= 1; }
                 }
-                horz.label(player_count.1.to_string());
+                horz.label(player_count.to_string());
                 if horz.add(egui::Button::new("+")).clicked() {
-                    if player_count.1 != 6 { player_count.1 += 1; }
+                    if player_count != 6 { player_count += 1; }
                 }
             });
             ui.horizontal(|horz| {
-                horz.checkbox(&mut settings.1, "Debt");
-                horz.checkbox(&mut settings.2, "Sell");
-                horz.checkbox(&mut settings.6, "Tax");
+                horz.checkbox(&mut settings.debt, "Debt");
+                horz.checkbox(&mut settings.sell, "Sell");
+                horz.checkbox(&mut settings.tax, "Tax");
             });
             ui.horizontal(|horz| {
-                horz.checkbox(&mut settings.3, "Homes");
-                horz.checkbox(&mut settings.7, "Jail");
-                horz.checkbox(&mut settings.8, "Auciton");
+                horz.checkbox(&mut settings.homes, "Homes");
+                horz.checkbox(&mut settings.jail, "Jail");
+                horz.checkbox(&mut settings.auction, "Auciton");
             });
             ui.horizontal(|horz| {
-                horz.checkbox(&mut settings.4, "Chance");
-                horz.checkbox(&mut settings.5, "Chest");
-                horz.checkbox(&mut settings.0, "Visual");
+                horz.checkbox(&mut settings.chance, "Chance");
+                horz.checkbox(&mut settings.chest, "Chest");
+                horz.checkbox(&mut settings.visual, "Visual");
             });
             if ui.add(egui::Button::new("Start")).clicked() {
-                for i in 0..player_count.1 {
-                    commands.spawn_bundle(PlayerBundle {
-                        money: Money(1500),
-                        token_position: TokenPosition(0, 0),
-                        player_id: PlayerId(i),
+                for i in 0..player_count {
+                    let entity = commands.spawn_bundle(PlayerBundle {
+                        money: Money { worth: 1500 },
+                        token_position: TokenPosition { current: 0, previous: 0 },
                         held_jail_free: HeldJailFree(0),
-                        is_computer: IsComputer(false),
-                        is_jailed: IsJailed(false)
-                    }).insert(Name::new(format!("Player {}", i)));
+                    })
+                    .insert(Name::new(format!("Player {}", i)))
+                    .id();
+
+                    players.ids.push(entity);
                 }
+
                 state.set(GameState::Rolling).unwrap();
             }
         });

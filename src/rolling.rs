@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::{GameState, setup::CurrentPlayer, player::{TokenPosition, PlayerId}, tile::TotalTiles};
+use crate::{*, setup::*, player::*, tile::*};
 use rand::Rng;
 
 pub struct RollingPlugin;
@@ -13,17 +13,21 @@ impl Plugin for RollingPlugin {
 
 fn start_roll(
     mut _commands: Commands,
-    current_player: Res<CurrentPlayer>,
-    total_tiles: Res<TotalTiles>,
-    mut players: Query<(&PlayerId, &mut TokenPosition), With<PlayerId>>,
+    players: Res<Players>,
+    tile_query: Query<(&TileType)>,
+    mut player_query: Query<(&mut TokenPosition)>,
     mut state: ResMut<State<GameState>>
 ) {
     // Handle being in Jail
     let dice = (rand::thread_rng().gen_range(1..=6), rand::thread_rng().gen_range(1..=6));
-    println!("Player index: {}, Total players: {}, Random Roll: {:?}", current_player.0, current_player.1, dice);
-    let mut value = players.iter_mut().find(|x| x.0.0 == current_player.0).unwrap().1;
-    value.1 = value.0;
-    value.0 += dice.0 + dice.1;
-    if value.0 >= total_tiles.0 - 1 { value.0 %= total_tiles.0 - 1; }
-    state.set(GameState::TileAction).unwrap();
+    println!("Player id: {:?}, Total players: {}, Random Roll: {:?}", players.ids[players.current], players.ids.len(), dice);
+
+    let current_player: Entity = players.ids[players.current];
+    let mut position = player_query.get_mut(current_player).unwrap();
+    let total_tiles = tile_query.iter().len();
+
+    position.previous = position.current;
+    position.current += dice.0 + dice.1;
+    if position.current > total_tiles as i32 { position.current %= total_tiles as i32 - 1; }
+    state.set(GameState::Action).unwrap();
 }

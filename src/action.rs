@@ -1,10 +1,5 @@
 use bevy::prelude::*;
-use crate::{
-    GameState,
-    setup::{CurrentPlayer, GameSettings},
-    tile::{FallThroughState, TilePosition, TileType, PairId, Cost, Tax, Tier}, 
-    player::{Money, PlayerId, TokenPosition, HeldJailFree, IsComputer}
-};
+use crate::{*, setup::*, tile::*, player::*};
 use bevy_egui::{egui, EguiContext};
 
 pub struct ActionPlugin;
@@ -12,28 +7,14 @@ pub struct ActionPlugin;
 impl Plugin for ActionPlugin {
     fn build(&self, app: &mut App) {
         app
-            .init_resource::<FallThroughState>()
             .init_resource::<Debounce>()
-            .add_system_set(SystemSet::on_update(GameState::PlayerAction)
+            .add_system_set(SystemSet::on_update(GameState::Action)
                 .with_system(player_interaction));
     }
 }
 
-/*
-    Enums for actions/cards from fall-through
-    (1) Actions that can fall through TileAction
-    (2) Cards that can be picked up during TileAction
-    (3) The Multi* card conditions
-*/
-pub enum FallThroughAction { // 1
-    Purchase, // Possibly purchase a property
-    Card, // Check a card provided
-    Restricted, // In jail, must choose to roll/pay/card
-    None // No action or debt handling
-}
-
 #[derive(PartialEq, Debug)]
-pub enum Card { // 2
+pub enum Card {
     JailFree, // Holdable, Out of Jail Free
     Jail, // Go to Jail
     GoTile, // Go to Tile, $ GO with Multi, !$ GO without Multi
@@ -55,7 +36,7 @@ impl Card {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum Multi { // 3
+pub enum Multi {
     Property, // Per property
     Buildings, // Per Building
     Player, // Per Player
@@ -73,76 +54,99 @@ impl Multi {
 }
 
 #[derive(Default)]
-pub struct Debounce(bool);
-
-impl Default for FallThroughState { fn default() -> Self { FallThroughState(FallThroughAction::None, 0, Card::None, Multi::None) } }
+pub struct Debounce { lock: bool }
 
 fn player_interaction(
-    mut current_player: ResMut<CurrentPlayer>,
-    mut player_tiles: Query<
-        (&mut Money, &mut TokenPosition, &PlayerId, &mut HeldJailFree, &IsComputer),
-        (With<PlayerId>, Without<TilePosition>),
-    >,
-    mut active_tiles: Query<
-        (&TilePosition, &TileType, &mut PlayerId, &PairId, &Cost, &Tax, &mut Tier),
-        With<TilePosition>,
-    >,
+    mut players: ResMut<Players>,
+
+    mut player_query: Query<(&mut Money, &mut TokenPosition, &mut HeldJailFree, Option<&Jailed>, Option<&Computer>)>,
+    mut tile_query: Query<(Entity, &TilePosition, &TileType, Option<&mut Owner>, Option<&PairId>, &Cost, &Tax, &mut Tier)>,
+
     mut ctx: ResMut<EguiContext>,
-    mut fall_through: ResMut<FallThroughState>,
     mut state: ResMut<State<GameState>>,
     mut debounce: ResMut<Debounce>,
+    mut commands: Commands,
     settings: Res<GameSettings>
 ) {
-    let mut player = player_tiles.iter_mut().find(|x| x.2.0 == current_player.0).unwrap();
-    let mut tile = active_tiles.iter_mut().find(|x| x.0.0 == player.1.0).unwrap();
+    let player = players.ids[players.current];
+    let (mut money, mut position, mut jail_free, jailed, computer) 
+        = player_query.get_mut(player).unwrap();
+    let (tile, space, building, owner, pair, cost, tax, tier) 
+        = tile_query.iter_mut().find(|(_, x, _, _, _, _, _, _)| x.0 == position.current).unwrap(); // change to .current later
 
-    if player.4.0 == false {
-        match fall_through.0 {
-            FallThroughAction::Purchase => { fall_through_purchase(player, settings, tile, ctx, fall_through, state, current_player, debounce); }
-            FallThroughAction::Card => { fall_through_card(player, settings, fall_through, state, current_player, debounce); }
-            _ => { loop_players(player, settings, current_player, state, fall_through); }
+    if position.current < position.previous {
+        println!(" Passed Go");
+        money.worth += 200;
+    }
+
+    match building {
+        TileType::Property => {
+            println!(" Property index: {}, Owner: {}, Player money: {}", position.current, if owner.is_some() { "NONE" } else { owner.unwrap().id.id().to_string().as_str() }, money.worth);
+            if owner.is_none() {
+                start_purchase(player, money, tile, space, cost, ctx, state, debounce, commands, settings);
+            } else if owner.unwrap().id != players.ids[players.current] {
+                // Fine
+            } else {
+                println!("  Player property");
+            }
         }
-    } else { /* AI does not need UI, invoke specific commands */ }
+        TileType::Tax => {
+            // Tax
+        }
+        TileType::Chance => {
+            // Chance
+        }
+        TileType::CommunityChest => {
+            // Chest
+        }
+        TileType::GoToJail => {
+            // Jail
+        }
+        _ => {
+            // Visiting jail or on free space
+        }
+    }
 }
 
-fn fall_through_purchase( // Note that &mut becomes Mut<> in bevy queries
-    mut player: (Mut<Money>, Mut<TokenPosition>, &PlayerId, Mut<HeldJailFree>, &IsComputer),
-    settings: Res<GameSettings>,
-    mut tile: (&TilePosition, &TileType, Mut<PlayerId>, &PairId, &Cost, &Tax, Mut<Tier>), 
+fn start_purchase(
+    player: Entity,
+    mut money: Mut<Money>,
+
+    tile: Entity,
+    space: &TilePosition,
+    cost: &Cost, 
+
     mut ctx: ResMut<EguiContext>,
-    // Pass through for loop
-    mut fall_through: ResMut<FallThroughState>,
     mut state: ResMut<State<GameState>>,
-    mut current_player: ResMut<CurrentPlayer>,
-    // Resource to handle submit buttons
-    mut debounce: ResMut<Debounce>
+    mut debounce: ResMut<Debounce>,
+    mut commands: Commands,
+    settings: Res<GameSettings>,
 ) {
-    if tile.4.0 > player.0.0 { /* Handle properties that can't be purchased / auctioning? */ return; }
+    if cost.initial > money.worth { return; } // auctioning
+
     egui::Area::new("PurchaseMenu")
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx.ctx_mut(), |ui| {
-            ui.heading(format!("Player {} Purchase", current_player.0 + 1));
-            ui.label(format!("Do you wish to purchase tile {} for ${}?", tile.0.0 + 1, tile.4.0));
+            ui.heading(format!("Player {} Purchase", player.id())); // replace with a name later
+            ui.label(format!("Do you wish to purchase tile {} for ${}?", space.0 + 1, cost.initial));
             ui.horizontal(|horz| {
-                if horz.add(egui::Button::new("Yes")).clicked() && !debounce.0 {
-                    player.0.0 -= tile.4.0;
-                    tile.2.0 = player.2.0;
-                    println!("  Purchase index: {}, Cost: {}, Money: {}", tile.0.0, tile.4.0, player.0.0);
-                    debounce.0 = true; // Apply a debounce so that the .clicked() doesn't infinite
-                    loop_players(player, settings, current_player, state, fall_through);
-                } else if horz.add(egui::Button::new("No")).clicked() && !debounce.0 {
-                    /* auctioning? */
-                    debounce.0 = true;
-                    loop_players(player, settings, current_player, state, fall_through);
+                if horz.add(egui::Button::new("Yes")).clicked() && !debounce.lock {
+                    money.worth -= cost.initial;
+                    commands.entity(tile).insert(Owner { id: player });
+                    debounce.lock = true;
+                    
+                    println!("  Purchase index: {}, Cost: {}, Money: {}", space.0, cost.initial, money.worth);
+                } else if horz.add(egui::Button::new("No")).clicked() && !debounce.lock {
+                    debounce.lock = true; // auctioning
                 } else {
-                    debounce.0 = false;
+                    debounce.lock = false;
                 }
             });
         });
 }
 
 fn fall_through_card(
-    mut player: (Mut<Money>, Mut<TokenPosition>, &PlayerId, Mut<HeldJailFree>, &IsComputer),
+    mut player: (Mut<Money>, Mut<TokenPosition>, &PlayerId, Mut<HeldJailFree>),
     
     settings: Res<GameSettings>,
     mut fall_through: ResMut<FallThroughState>,
@@ -211,7 +215,7 @@ fn loop_players(
         if settings.1 {
             player.1.0 = -1; player.1.1 = -1; // -1 means bankrupt, handled by roll
         } else {
-            
+
         }
         
     }
