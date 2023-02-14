@@ -15,7 +15,7 @@ fn start_roll(
     mut _commands: Commands,
     players: Res<Players>,
     tile_query: Query<(&TileType)>,
-    mut player_query: Query<(&mut TokenPosition)>,
+    mut player_query: Query<(&mut Token)>,
     mut state: ResMut<State<GameState>>
 ) {
     // Handle being in Jail
@@ -28,6 +28,6 @@ fn start_roll(
 
     position.previous = position.current;
     position.current += dice.0 + dice.1;
-    if position.current > total_tiles as i32 { position.current %= total_tiles as i32 - 1; }
-    state.set(GameState::Action).unwrap();
+    if position.current > total_tiles as i32 - 1 { position.current %= total_tiles as i32 - 1; }
+    state.set(GameState::Results).unwrap();
 }

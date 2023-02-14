@@ -3,6 +3,7 @@ use bevy_inspector_egui::{WorldInspectorPlugin, RegisterInspectable};
 mod setup; mod menu; mod rolling; mod player; mod tile; mod action;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+// We can probably swap this out for Events
 pub enum GameState {
     Menu,
     Rolling,
@@ -44,19 +45,21 @@ fn main() {
 
         // Player Debug
         .register_inspectable::<player::Money>()
-        .register_inspectable::<player::TokenPosition>()
-        .register_inspectable::<player::HeldJailFree>()
+        .register_inspectable::<player::Token>()
+        .register_inspectable::<player::JailFree>()
         .register_inspectable::<player::Computer>()
 
         // Tile Debug
-        .register_inspectable::<tile::TileAttribute>()
-        .register_inspectable::<tile::TilePosition>()
+        .register_inspectable::<tile::Space>()
         .register_inspectable::<tile::TileType>()
         .register_inspectable::<tile::Owner>()
-        .register_inspectable::<tile::PairId>()
+        .register_inspectable::<tile::Pair>()
         .register_inspectable::<tile::Cost>()
         .register_inspectable::<tile::Tax>()
         .register_inspectable::<tile::Tier>()
         
         .run();
 }
+
+// ! Redo the println!() statements--they're currently hard to read
+// ! Have bankruptcy handled by a different system, looking at changes in money

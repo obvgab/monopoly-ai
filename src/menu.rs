@@ -29,7 +29,7 @@ fn main_menu(
     mut state: ResMut<State<GameState>>,
     mut commands: Commands
 ) {
-    let mut player_count = 0;
+    let mut player_count = 2;
 
     egui::Area::new("MainMenu")
         .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
@@ -63,8 +63,8 @@ fn main_menu(
                 for i in 0..player_count {
                     let entity = commands.spawn_bundle(PlayerBundle {
                         money: Money { worth: 1500 },
-                        token_position: TokenPosition { current: 0, previous: 0 },
-                        held_jail_free: HeldJailFree(0),
+                        token_position: Token { current: 0, previous: 0 },
+                        held_jail_free: JailFree { held: 0 },
                     })
                     .insert(Name::new(format!("Player {}", i)))
                     .id();
