@@ -1,0 +1,5 @@
+board/target/
+player/computer/target/
+player/human/target/
+store/target/
+.git/
