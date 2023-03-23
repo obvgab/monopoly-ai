@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
-use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent}, transport::webrtc, CommandsExt};
+use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent}, transport::webrtc, CommandsExt};
 use monai_store::{Auth, player::Money};
 use crate::{Players, Code};
 
@@ -28,10 +28,21 @@ pub fn initialize_server(
 }
 
 pub fn tick(
+    mut event_reader: EventReader<TickEvent>,
+
     mut server: Server
 ) {
-    for (_, key, entity) in server.scope_checks() { // Ignore room key, we only have one
-        server.user_scope(&key).include(&entity); // Include all entities, no checking
+    let mut ticked = false;
+
+    // Placeholder tick code
+    for event in event_reader.iter() {
+        ticked = true;
+    }
+
+    if ticked {
+        for (_, key, entity) in server.scope_checks() { // Ignore room key, we only have one
+            server.user_scope(&key).include(&entity); // Include all entities, no checking
+        }
     }
 }
 

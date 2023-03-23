@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent}, transport::webrtc};
+use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents}, transport::webrtc, ReceiveEvents};
 use monai_store::{protocol_builder, Auth};
 
 fn main() {
@@ -7,6 +7,15 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(ClientPlugin::new(ClientConfig::default(), protocol_builder()))
         .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
+
+        .add_systems(
+            (
+                on_spawn_entity,
+                on_insert_component
+            )
+            .chain()
+            .in_set(ReceiveEvents)
+        )
 
         .add_startup_system(initialize_client)
         .run();
@@ -27,5 +36,13 @@ fn on_spawn_entity(
 ) {
     for event in event_reader.iter() {
         info!("Heard entity spawn");
+    }
+}
+
+fn on_insert_component(
+    mut event_reader: EventReader<InsertComponentEvents>
+) {
+    for event in event_reader.iter() {
+        info!("Heard insert component");
     }
 }

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use naia_bevy_shared::{LinkConditionerConfig, Protocol, Message};
+use player::Money;
 pub mod player;
 
 pub fn protocol_builder() -> Protocol {
@@ -8,6 +9,7 @@ pub fn protocol_builder() -> Protocol {
         .tick_interval(Duration::from_millis(25))
         .link_condition(LinkConditionerConfig::average_condition())
         .add_message::<Auth>()
+        .add_component::<Money>()
         .build()
 }
 
