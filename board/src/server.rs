@@ -101,3 +101,6 @@ pub fn connect_player(
         info!("Connected and spawned entity for {}, {}", players.name[key], user);
     }
 }
+
+#[derive(Component, ReflectComponent)]
+struct Test;

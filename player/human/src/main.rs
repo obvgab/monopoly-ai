@@ -6,7 +6,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(ClientPlugin::new(ClientConfig::default(), protocol_builder()))
-        .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
+        .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::default())
 
         .add_systems(
             (
@@ -16,8 +16,9 @@ fn main() {
             .chain()
             .in_set(ReceiveEvents)
         )
-
         .add_startup_system(initialize_client)
+        .register_type::<monai_store::player::Money>()
+
         .run();
 }
 

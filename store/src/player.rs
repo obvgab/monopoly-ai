@@ -1,7 +1,8 @@
-use bevy_ecs::prelude::Component;
+use bevy_ecs::component::Component;
+use bevy_reflect::Reflect;
 use naia_bevy_shared::{Property, Replicate};
 
-#[derive(Component, Replicate)]
+#[derive(Component, Replicate, Reflect)]
 pub struct Money {
     pub worth: Property<i32>
 }

@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy_ecs = { version = "0.10", default-features=false }
+bevy_ecs = { version = "0.10" }
+bevy_reflect = { version = "0.10" } # Temporary for EGUI
 naia-bevy-shared = { version = "0.20" }
