@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent}, transport::webrtc, CommandsExt};
 use monai_store::{Auth, player::Money};
-use crate::{Players, Code};
+use crate::state::{Players, Code};
 
 /*
  * Server Handling
@@ -101,6 +101,3 @@ pub fn connect_player(
         info!("Connected and spawned entity for {}, {}", players.name[key], user);
     }
 }
-
-#[derive(Component, ReflectComponent)]
-struct Test;

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents}, transport::webrtc, ReceiveEvents};
+use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents, UpdateComponentEvents}, transport::webrtc, ReceiveEvents};
 use monai_store::{protocol_builder, Auth};
 
 fn main() {
@@ -11,13 +11,13 @@ fn main() {
         .add_systems(
             (
                 on_spawn_entity,
-                on_insert_component
+                on_insert_component,
+                on_update_component
             )
             .chain()
             .in_set(ReceiveEvents)
         )
         .add_startup_system(initialize_client)
-        .register_type::<monai_store::player::Money>()
 
         .run();
 }
@@ -45,5 +45,13 @@ fn on_insert_component(
 ) {
     for event in event_reader.iter() {
         info!("Heard insert component");
+    }
+}
+
+fn on_update_component(
+    mut event_reader: EventReader<UpdateComponentEvents>
+) {
+    for event in event_reader.iter() {
+        info!("Heard update component");
     }
 }

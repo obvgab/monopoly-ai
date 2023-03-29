@@ -2420,6 +2420,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_egui",
  "monai_store",
  "naia-bevy-server",
  "naia-bevy-shared",
@@ -2430,7 +2431,6 @@ name = "monai_store"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",
- "bevy_reflect",
  "naia-bevy-shared",
 ]
 
