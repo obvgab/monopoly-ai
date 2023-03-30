@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
-use crate::state::{Players, GameState};
+use crate::state::{Players, GameState, Code};
 
 #[derive(Resource)]
 pub struct BoardConfiguration {
@@ -11,14 +11,19 @@ pub struct BoardConfiguration {
 
 pub fn gui(
     players: Res<Players>,
+    code: Res<Code>,
     mut configuration: ResMut<BoardConfiguration>,
     mut game_state: ResMut<NextState<GameState>>,
 
     mut contexts: EguiContexts,
 ) { 
-    
-
     egui::Area::new("Main Menu").show(contexts.ctx_mut(), |ui| {
+        ui.label("Server");
+        ui.separator();
+
+        ui.label(&code.value);
+        ui.spacing();
+
         ui.label("Board");
         ui.separator();
 
@@ -30,6 +35,7 @@ pub fn gui(
         let minimum = configuration.corners * 1;
         let maximum = configuration.corners * 500;
         ui.add(egui::Slider::new(&mut configuration.squares, minimum..=maximum).text("Squares").step_by(step));
+        ui.spacing();
 
         ui.label("Players");
         ui.separator();
@@ -39,6 +45,7 @@ pub fn gui(
                 row.label(name);
             });
         }
+        ui.spacing();
 
         ui.separator();
 

@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use naia_bevy_shared::WorldMut;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent}, transport::webrtc, CommandsExt};
 use monai_store::{Auth, player::Money};
@@ -34,7 +33,7 @@ pub fn tick(
     let mut ticked = false;
 
     // Placeholder tick code
-    for event in event_reader.iter() {
+    for _event in event_reader.iter() {
         ticked = true;
     }
 
@@ -98,4 +97,4 @@ pub fn connect_player(
     }
 }
 
-pub fn disconnect_player() {}
+pub fn _disconnect_player() {}

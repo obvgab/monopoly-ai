@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use naia_bevy_shared::WorldMut;
 use std::collections::HashMap;
 use naia_bevy_server::{UserKey, RoomKey};
 
@@ -24,20 +23,20 @@ pub enum GameState {
 }
 
 impl Players { // we might not **need** to deref here
-    pub fn current_player(&self) -> (&UserKey, &Entity) {
+    pub fn _current_player(&self) -> (&UserKey, &Entity) {
         let player = self.list.get_key_value(&self.current.unwrap()).unwrap();
         return (player.0, player.1);
     }
 
-    pub fn current_player_entity(&self) -> &Entity {
+    pub fn _current_player_entity(&self) -> &Entity {
         return self.list.get(&self.current.unwrap()).unwrap();
     }
 
-    pub fn current_player_key(&self) -> &UserKey {
+    pub fn _current_player_key(&self) -> &UserKey {
         return self.list.get_key_value(&self.current.unwrap()).unwrap().0;
     }
     
-    pub fn next_player(&mut self) {
+    pub fn _next_player(&mut self) {
         let counter: Vec<UserKey> = self.list.keys().cloned().collect();
 
         let mut current_position = counter.iter().position(|&key| key == self.current.unwrap()).unwrap();
@@ -52,7 +51,7 @@ impl Players { // we might not **need** to deref here
         self.current = Some(counter[current_position]);
     }
 
-    pub fn initial_player(&mut self) { // Assumes 'list' has been populated
+    pub fn _initial_player(&mut self) { // Assumes 'list' has been populated
         let counter: Vec<UserKey> = self.list.keys().cloned().collect();
 
         self.current = Some(counter[0]);

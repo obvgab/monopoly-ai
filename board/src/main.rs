@@ -5,6 +5,7 @@ use monai_store::protocol_builder;
 mod server;
 mod state;
 mod menu;
+mod generator;
 
 fn main() {
     App::new()
@@ -14,6 +15,15 @@ fn main() {
 
         .add_state::<state::GameState>()
         .add_system(menu::gui.in_set(OnUpdate(state::GameState::Menu)))
+        .add_systems(
+            (
+                generator::generate_board,
+                generator::initialize_board
+            )
+            .chain()
+            .in_schedule(OnEnter(state::GameState::InGame))
+        )
+        .add_system(generator::reset_board.in_schedule(OnExit(state::GameState::InGame)))
 
         .add_systems(
             (
