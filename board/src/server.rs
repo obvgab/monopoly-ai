@@ -1,12 +1,10 @@
 use bevy::prelude::*;
+use naia_bevy_shared::WorldMut;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent}, transport::webrtc, CommandsExt};
 use monai_store::{Auth, player::Money};
-use crate::state::{Players, Code};
+use crate::{state::{Players, Code}, menu::BoardConfiguration};
 
-/*
- * Server Handling
- */
 pub fn initialize_server(
     mut commands: Commands,
     mut server: Server
@@ -23,6 +21,7 @@ pub fn initialize_server(
     // Make this random later
     commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new() });
     commands.insert_resource(Code { value: "MONAI".to_string(), game_room: server.make_room().key() });
+    commands.insert_resource(BoardConfiguration { polygonal_board: false, corners: 4, squares: 40 });
     
     info!("Naia server initialized");
 }
@@ -46,9 +45,6 @@ pub fn tick(
     }
 }
 
-/*
- * Server Events
- */
 pub fn authorize_player(
     mut event_reader: EventReader<AuthEvents>,
 
@@ -101,3 +97,5 @@ pub fn connect_player(
         info!("Connected and spawned entity for {}, {}", players.name[key], user);
     }
 }
+
+pub fn disconnect_player() {}

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use naia_bevy_shared::WorldMut;
 use std::collections::HashMap;
 use naia_bevy_server::{UserKey, RoomKey};
 

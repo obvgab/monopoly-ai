@@ -10,7 +10,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(ServerPlugin::new(ServerConfig::default(), protocol_builder()))
-        .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::new())
+        .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::new()) // Eventually add raw egui after debugging
 
         .add_state::<state::GameState>()
         .add_system(menu::gui.in_set(OnUpdate(state::GameState::Menu)))
