@@ -11,3 +11,14 @@ impl Money {
         Money::new_complete(worth)
     }
 }
+
+#[derive(Component, Replicate)]
+pub struct Position {
+    pub tile: Property<i32>
+}
+
+impl Position {
+    pub fn new(tile: i32) -> Self {
+        Position::new_complete(tile)
+    }
+}

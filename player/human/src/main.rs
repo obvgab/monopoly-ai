@@ -35,7 +35,7 @@ fn initialize_client(
 fn on_spawn_entity(
     mut event_reader: EventReader<SpawnEntityEvent>
 ) {
-    for event in event_reader.iter() {
+    for _event in event_reader.iter() {
         info!("Heard entity spawn");
     }
 }
@@ -43,7 +43,7 @@ fn on_spawn_entity(
 fn on_insert_component(
     mut event_reader: EventReader<InsertComponentEvents>
 ) {
-    for event in event_reader.iter() {
+    for _event in event_reader.iter() {
         info!("Heard insert component");
     }
 }
@@ -51,7 +51,7 @@ fn on_insert_component(
 fn on_update_component(
     mut event_reader: EventReader<UpdateComponentEvents>
 ) {
-    for event in event_reader.iter() {
+    for _event in event_reader.iter() {
         info!("Heard update component");
     }
 }

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
-use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent}, transport::webrtc, CommandsExt};
+use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent, DisconnectEvent}, transport::webrtc, CommandsExt};
 use monai_store::{Auth, player::Money};
 use crate::{state::{Players, Code}, menu::BoardConfiguration};
 
@@ -97,4 +97,18 @@ pub fn connect_player(
     }
 }
 
-pub fn _disconnect_player() {}
+pub fn disconnect_player(
+    mut event_reader: EventReader<DisconnectEvent>,
+
+    mut players: ResMut<Players>,
+
+    mut commands: Commands
+) {
+    for DisconnectEvent(key, _user) in event_reader.iter() {
+        let entity = players.list.remove(key).expect("User not registered");
+        let name = players.name.remove(key).expect("User has no name");
+        commands.get_entity(entity).expect("User entity already removed").despawn_recursive();
+
+        info!("Disconnected and removed entity for {}", name);
+    }
+}

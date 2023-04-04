@@ -18,17 +18,18 @@ fn main() {
         .add_systems(
             (
                 generator::generate_board,
-                generator::initialize_board
+                generator::initialize_players
             )
             .chain()
             .in_schedule(OnEnter(state::GameState::InGame))
         )
-        .add_system(generator::reset_board.in_schedule(OnExit(state::GameState::InGame)))
+        .add_system(generator::reset_game.in_schedule(OnExit(state::GameState::InGame)))
 
         .add_systems(
             (
                 server::authorize_player,
                 server::connect_player,
+                server::disconnect_player,
                 server::tick
             )
             .chain()
