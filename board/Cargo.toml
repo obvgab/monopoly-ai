@@ -9,6 +9,7 @@ edition = "2021"
 bevy = { version = "0.10" }
 bevy-inspector-egui = { version = "0.18" }
 bevy_egui = { version = "0.20" }
+rand = { version = "0.8" }
 naia-bevy-server = { version = "0.20", features = ["transport_webrtc"] }
 naia-bevy-shared = { version = "0.20" }
 monai_store = { path = "../store" }

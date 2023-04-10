@@ -12,10 +12,11 @@ pub struct BoardConfiguration {
 pub fn gui(
     players: Res<Players>,
     code: Res<Code>,
+
     mut configuration: ResMut<BoardConfiguration>,
     mut game_state: ResMut<NextState<GameState>>,
 
-    mut contexts: EguiContexts,
+    mut contexts: EguiContexts
 ) { 
     egui::Area::new("Main Menu").show(contexts.ctx_mut(), |ui| {
         ui.label("Server");

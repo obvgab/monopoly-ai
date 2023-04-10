@@ -1,5 +1,5 @@
 use bevy_ecs::component::Component;
-use naia_bevy_shared::{Property, Replicate};
+use naia_bevy_shared::{Property, Replicate, Serde};
 
 #[derive(Component, Replicate)]
 pub struct Money {
@@ -14,11 +14,22 @@ impl Money {
 
 #[derive(Component, Replicate)]
 pub struct Position {
-    pub tile: Property<i32>
+    pub tile: Property<usize>
 }
 
 impl Position {
-    pub fn new(tile: i32) -> Self {
+    pub fn new(tile: usize) -> Self {
         Position::new_complete(tile)
     }
+}
+
+// Effective what defines the action state
+#[derive(Default, Clone, PartialEq, Serde)]
+pub enum Action {
+    #[default]
+    None,
+    Sell, // Currently can only sell 1 at a time for the AI
+    // SellMany,
+    Purchase,
+    // More later
 }

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents, UpdateComponentEvents}, transport::webrtc, ReceiveEvents};
+use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents, UpdateComponentEvents, ClientTickEvent}, transport::webrtc, ReceiveEvents};
 use monai_store::{protocol_builder, Auth};
 
 fn main() {

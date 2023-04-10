@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent, DisconnectEvent}, transport::webrtc, CommandsExt};
 use monai_store::{Auth, player::Money};
-use crate::{state::{Players, Code}, menu::BoardConfiguration};
+use crate::{state::{Players, Code, Tiles}, menu::BoardConfiguration};
 
 pub fn initialize_server(
     mut commands: Commands,
@@ -21,6 +21,7 @@ pub fn initialize_server(
     commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new() });
     commands.insert_resource(Code { value: "MONAI".to_string(), game_room: server.make_room().key() });
     commands.insert_resource(BoardConfiguration { polygonal_board: false, corners: 4, squares: 40 });
+    commands.insert_resource(Tiles { list: vec![], tested_probability: vec![], groups: vec![] });
     
     info!("Naia server initialized");
 }
@@ -33,8 +34,9 @@ pub fn tick(
     let mut ticked = false;
 
     // Placeholder tick code
-    for _event in event_reader.iter() {
+    for TickEvent(_event) in event_reader.iter() {
         ticked = true;
+        break; // temp
     }
 
     if ticked {

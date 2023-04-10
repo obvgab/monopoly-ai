@@ -8,11 +8,19 @@ pub struct Code {
     pub game_room: RoomKey
 }
 
+// These structs are an abomination of ECS, but it works for now
 #[derive(Resource)]
 pub struct Players {
     pub list: HashMap<UserKey, Entity>,
     pub current: Option<UserKey>,
     pub name: HashMap<UserKey, String>
+}
+
+#[derive(Resource)]
+pub struct Tiles {
+    pub list: Vec<Entity>,
+    pub tested_probability: Vec<i32>,
+    pub groups: Vec<Vec<Entity>>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -42,16 +50,13 @@ impl Players { // we might not **need** to deref here
         let mut current_position = counter.iter().position(|&key| key == self.current.unwrap()).unwrap();
         let total_size = counter.len();
 
-        if current_position == total_size - 1 {
-            current_position = 0;
-        } else {
-            current_position += 1;
-        }
+        current_position += 1;
+        current_position %= total_size - 1;
 
         self.current = Some(counter[current_position]);
     }
 
-    pub fn _initial_player(&mut self) { // Assumes 'list' has been populated
+    pub fn initial_player(&mut self) { // Assumes 'list' has been populated
         let counter: Vec<UserKey> = self.list.keys().cloned().collect();
 
         self.current = Some(counter[0]);

@@ -2424,6 +2424,7 @@ dependencies = [
  "monai_store",
  "naia-bevy-server",
  "naia-bevy-shared",
+ "rand",
 ]
 
 [[package]]
