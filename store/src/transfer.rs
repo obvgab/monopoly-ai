@@ -9,14 +9,14 @@ pub struct Forfeit; // Not going to let the AI forfeit, less data
 
 #[derive(Message)]
 pub struct AlterOwnable {
-    pub id: usize,
+    pub id: u64,
     pub house: bool,
     pub hotel: bool
 }
 
 #[derive(Message)]
 pub struct SellOwnable {
-    pub id: usize
+    pub id: u64
 }
 
 #[derive(Message)]
@@ -32,7 +32,7 @@ pub struct BoardUpdateChannel;
 pub struct BeginTurn { 
     // in theory we can make the client simpler by not having replication, just using begin turn to transfer necessary data
     // however, its nice to have access to a lot of information for the AI paramters
-    pub sellable: Vec<usize>,
-    pub position: usize,
+    pub sellable: Vec<u64>,
+    pub position: u64,
     pub available_actions: Vec<Action>
 }

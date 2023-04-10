@@ -26,18 +26,12 @@ pub fn initialize_server(
     info!("Naia server initialized");
 }
 
-pub fn tick(
-    mut event_reader: EventReader<TickEvent>,
+pub fn tick( // Usually game logic would be here. We're not using tick-buffered messages: so we'll process in message events
+    event_reader: EventReader<TickEvent>,
 
     mut server: Server
 ) {
-    let mut ticked = false;
-
-    // Placeholder tick code
-    for TickEvent(_event) in event_reader.iter() {
-        ticked = true;
-        break; // temp
-    }
+    let ticked = event_reader.is_empty();
 
     if ticked {
         for (_, key, entity) in server.scope_checks() { // Ignore room key, we only have one

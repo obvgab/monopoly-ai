@@ -31,9 +31,11 @@ pub struct Chance;
 pub struct Corner;
 
 #[derive(Component, Replicate)]
-pub struct Ownable {
+pub struct Tile {
     pub tier: Property<Tier>,
-    pub owner: Property<Option<usize>>
+    pub owner: Property<Option<u64>>, // u64 is the owner's entity
+    pub cost: Property<i32>
+    // add more tile information later
 }
 
 #[derive(Default, Clone, PartialEq, Serde)]
@@ -43,4 +45,10 @@ pub enum Tier {
     Owned,
     House,
     Hotel
+}
+
+impl Tile {
+    pub fn new(tier: Tier, owner: Option<u64>, cost: i32) {
+        Tile::new_complete(tier, owner, cost);
+    }
 }

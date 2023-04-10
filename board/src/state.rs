@@ -40,11 +40,11 @@ impl Players { // we might not **need** to deref here
         return self.list.get(&self.current.unwrap()).unwrap();
     }
 
-    pub fn _current_player_key(&self) -> &UserKey {
+    pub fn current_player_key(&self) -> &UserKey {
         return self.list.get_key_value(&self.current.unwrap()).unwrap().0;
     }
     
-    pub fn _next_player(&mut self) {
+    pub fn next_player(&mut self) {
         let counter: Vec<UserKey> = self.list.keys().cloned().collect();
 
         let mut current_position = counter.iter().position(|&key| key == self.current.unwrap()).unwrap();

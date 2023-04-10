@@ -6,6 +6,7 @@ mod server;
 mod state;
 mod menu;
 mod generator;
+mod message;
 
 fn main() {
     App::new()
@@ -30,7 +31,8 @@ fn main() {
                 server::authorize_player,
                 server::connect_player,
                 server::disconnect_player,
-                server::tick
+                server::tick,
+                message::message_receive
             )
             .chain()
             .in_set(ReceiveEvents)

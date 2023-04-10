@@ -14,11 +14,11 @@ impl Money {
 
 #[derive(Component, Replicate)]
 pub struct Position {
-    pub tile: Property<usize>
+    pub tile: Property<u64>
 }
 
 impl Position {
-    pub fn new(tile: usize) -> Self {
+    pub fn new(tile: u64) -> Self {
         Position::new_complete(tile)
     }
 }
