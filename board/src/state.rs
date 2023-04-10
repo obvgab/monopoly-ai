@@ -36,7 +36,7 @@ impl Players { // we might not **need** to deref here
         return (player.0, player.1);
     }
 
-    pub fn _current_player_entity(&self) -> &Entity {
+    pub fn current_player_entity(&self) -> &Entity {
         return self.list.get(&self.current.unwrap()).unwrap();
     }
 

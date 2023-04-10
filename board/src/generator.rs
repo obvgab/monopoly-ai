@@ -1,6 +1,6 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
-use crate::{menu::BoardConfiguration, state::{Tiles, Players}};
+use crate::{menu::BoardConfiguration, state::{Tiles, Players}, message::NextTurn};
 use monai_store::tile::{Probability, Group, Chance};
 
 pub fn generate_board(
@@ -43,16 +43,17 @@ pub fn generate_board(
 pub fn initialize_players(
     configuration: Res<BoardConfiguration>,
 
-    mut tiles: ResMut<Tiles>,
+    mut event_writer: EventWriter<NextTurn>,
+    mut spaces: ResMut<Tiles>,
     mut players: ResMut<Players>,
 
     mut commands: Commands
 ) {
     players.initial_player();
 
-    tiles.tested_probability = vec![0; tiles.list.len()];
+    spaces.tested_probability = vec![0; spaces.list.len()];
 
-    let runs = tiles.list.len() as i32 * 300;
+    let runs = spaces.list.len() as i32 * 300;
     let mut last_tile = 0;
     let mut random = rand::thread_rng();
 
@@ -60,17 +61,17 @@ pub fn initialize_players(
         if turns % 30 == 0 { last_tile = 0; } 
 
         last_tile += random.gen_range(2..=12);
-        last_tile %= tiles.list.len() - 1;
+        last_tile %= spaces.list.len() - 1;
 
-        tiles.tested_probability[last_tile] += 1;
+        spaces.tested_probability[last_tile] += 1;
     }
 
     let mut current_group = -1;
     let mut current_group_fill = 0;
 
-    for tile in 0..tiles.list.len() {
-        let mut entity_commands = commands.get_entity(tiles.list[tile]).expect("Ghost tile found");
-        entity_commands.insert(Probability::new(tiles.tested_probability[tile] as f32 / runs as f32));
+    for tile in 0..spaces.list.len() {
+        let mut entity_commands = commands.get_entity(spaces.list[tile]).expect("Ghost tile found");
+        entity_commands.insert(Probability::new(spaces.tested_probability[tile] as f32 / runs as f32));
 
         let relative_tile = tile % (configuration.squares / configuration.corners) as usize;
         if relative_tile == 0 { continue; }
@@ -81,13 +82,15 @@ pub fn initialize_players(
 
         if current_group_fill % 3 == 0 {
             current_group += 1;
-            tiles.groups.push(vec![]);
+            spaces.groups.push(vec![]);
         }
 
         entity_commands.insert(Group::new(current_group as usize));
-        tiles.groups[current_group as usize].push(entity_commands.id());
+        spaces.groups[current_group as usize].push(entity_commands.id());
         current_group_fill += 1;
     }
+
+    event_writer.send(NextTurn(None));
 }
 
 pub fn reset_game() {}

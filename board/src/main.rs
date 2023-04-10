@@ -25,6 +25,13 @@ fn main() {
             .in_schedule(OnEnter(state::GameState::InGame))
         )
         .add_system(generator::reset_game.in_schedule(OnExit(state::GameState::InGame)))
+        .add_systems(
+            (
+                message::next_turn,
+                message::reward_player
+            )
+            .in_set(OnUpdate(state::GameState::InGame))
+        )
 
         .add_systems(
             (

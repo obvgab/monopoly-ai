@@ -32,7 +32,5 @@ pub struct BoardUpdateChannel;
 pub struct BeginTurn { 
     // in theory we can make the client simpler by not having replication, just using begin turn to transfer necessary data
     // however, its nice to have access to a lot of information for the AI paramters
-    pub sellable: Vec<u64>,
-    pub position: u64,
-    pub available_actions: Vec<Action>
+    pub available_actions: Vec<Action> // forces synchronous playing--going to have to change this later for suddeb debt and trading, make this Vec<Vec> soon
 }
