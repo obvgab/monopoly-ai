@@ -1,8 +1,8 @@
 use bevy::prelude::*;
-use naia_bevy_client::{Client, ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents, UpdateComponentEvents, ClientTickEvent}, transport::webrtc, ReceiveEvents};
-use monai_store::{protocol_builder, Auth};
+use naia_bevy_client::{ClientConfig, Plugin as ClientPlugin, events::{SpawnEntityEvent, InsertComponentEvents, UpdateComponentEvents}, ReceiveEvents};
+use monai_store::{protocol_builder};
 
-mod gui;
+mod control;
 
 fn main() {
     App::new()
@@ -19,19 +19,15 @@ fn main() {
             .chain()
             .in_set(ReceiveEvents)
         )
-        .add_startup_system(initialize_client)
+        .insert_resource(control::StatefulInformation {
+            is_connected: false,
+            name: "".into(),
+            code: "".into(),
+            url: "".into()
+        })
+        .add_system(control::gui)
 
         .run();
-}
-
-fn initialize_client(
-    mut _commands: Commands,
-    mut client: Client
-) {
-    client.auth(Auth::new("GUH", "MONAI"));
-
-    let socket = webrtc::Socket::new("http://127.0.0.1:1095", client.socket_config());
-    client.connect(socket);
 }
 
 fn on_spawn_entity(
