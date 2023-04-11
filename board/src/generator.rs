@@ -1,39 +1,49 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use naia_bevy_server::{Server, CommandsExt};
 use rand::Rng;
-use crate::{menu::BoardConfiguration, state::{Tiles, Players}, message::NextTurn};
+use crate::{menu::BoardConfiguration, state::{Tiles, Players, Code}, message::NextTurn, SQUARE_SIZE};
 use monai_store::{tile::{Probability, Group, Chance, Corner, Tile, Tier}, player::Position};
 
 pub fn generate_board(
+    code: Res<Code>,
     configuration: Res<BoardConfiguration>,
     mut tiles: ResMut<Tiles>,
 
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 
+    mut server: Server,
     mut commands: Commands
 ) {
-    commands.spawn(Camera2dBundle::default());
-
-    let mut reference_transform = Transform::from_xyz(0.0, 0.0, 0.0);
     let radians = (360.0 / configuration.corners as f32).to_radians();
+    let radius = SQUARE_SIZE / 2.0;
+    let scale = (radius * (radians / 2.0).sin()) / (configuration.squares / configuration.corners) as f32;
+
+    let x_start = -1.0 * radius * (radians / 2.0).sin();
+    let y_start = -1.0 * radius * (radians / 2.0).cos();
+
+    let mut reference_transform = Transform::from_xyz(x_start, y_start, 0.0);
+
+    commands.spawn(Camera2dBundle::default());
     for _rotation  in 0..configuration.corners {
         for tile in 0..(configuration.squares / configuration.corners) { 
             let entity = commands.spawn(MaterialMesh2dBundle {
                 mesh: meshes.add(
                     if tile == 0 {
-                        shape::Circle::new(5.0).into()
+                        shape::Circle::new(scale).into()
                     } else {
-                        shape::Quad::new(Vec2::new(5.0, 10.0)).into()
+                        shape::Quad::new(Vec2::new(scale, scale * 2.0)).into()
                     }
                 ).into(),
                 material: materials.add(ColorMaterial::from(Color::BLACK)),
                 transform: reference_transform,
                 ..default()
-            }).id();
+            }).enable_replication(&mut server).id();
 
+            server.room_mut(&code.game_room).add_entity(&entity);
             tiles.list.push(entity);
 
-            reference_transform.translation += reference_transform.rotation * Vec3::X * 10.0;
+            reference_transform.translation += reference_transform.rotation * Vec3::X * scale * 2.0;
         }
 
         reference_transform.rotate_z(radians);

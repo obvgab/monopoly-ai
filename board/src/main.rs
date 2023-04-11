@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*};
 use naia_bevy_server::{Plugin as ServerPlugin, ReceiveEvents, ServerConfig};
 use monai_store::protocol_builder;
 
@@ -8,9 +8,19 @@ mod menu;
 mod generator;
 mod message;
 
+const SQUARE_SIZE: f32 = 720.0;
+
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(
+            WindowPlugin {
+                primary_window: Some(Window {
+                    resolution: (SQUARE_SIZE, SQUARE_SIZE).into(),
+                    ..default()
+                }),
+                ..default()
+            }
+        ))
         .add_plugin(ServerPlugin::new(ServerConfig::default(), protocol_builder()))
         .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::new()) // Eventually add raw egui after debugging
 

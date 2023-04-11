@@ -50,7 +50,7 @@ pub fn gui(
 
         ui.separator();
 
-        if ui.button("Start").clicked() {
+        if !players.list.is_empty() && players.list.len() == players.name.len() && ui.button("Start").clicked() {
             game_state.set(GameState::InGame);
         }
     });
