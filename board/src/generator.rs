@@ -93,7 +93,7 @@ pub fn initialize_players(
             .insert(Position::new(spaces.list[0].to_bits()));
     }
 
-    //sevent_writer.send(NextTurn(None));
+    event_writer.send(NextTurn(None));
 }
 
 pub fn reset_game() {}

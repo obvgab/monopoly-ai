@@ -49,6 +49,6 @@ pub enum Tier {
 
 impl Tile {
     pub fn new(tier: Tier, owner: Option<u64>, cost: i32) -> Self {
-        Tile::new_complete(tier, owner, cost);
+        Tile::new_complete(tier, owner, cost)
     }
 }

@@ -97,7 +97,6 @@ pub fn next_turn(
             *position.tile = spaces.list[property].to_bits();
         }
 
-        tiles.for_each(|tile| println!("{}", tile.0.to_bits()));
         let (_property, tile, corner, chance) = tiles.get(Entity::from_bits(*position.tile)).expect("Current player is sitting on an unknown tile");
         
         // TEMPORARY COST SPACE CODE
