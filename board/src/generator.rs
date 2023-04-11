@@ -1,7 +1,7 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 use crate::{menu::BoardConfiguration, state::{Tiles, Players}, message::NextTurn};
-use monai_store::tile::{Probability, Group, Chance};
+use monai_store::{tile::{Probability, Group, Chance, Corner, Tile, Tier}, player::Position};
 
 pub fn generate_board(
     configuration: Res<BoardConfiguration>,
@@ -72,13 +72,11 @@ pub fn initialize_players(
     for tile in 0..spaces.list.len() {
         let mut entity_commands = commands.get_entity(spaces.list[tile]).expect("Ghost tile found");
         entity_commands.insert(Probability::new(spaces.tested_probability[tile] as f32 / runs as f32));
+        entity_commands.insert(Tile::new(Tier::None, None, 100)); // This wont run??
 
         let relative_tile = tile % (configuration.squares / configuration.corners) as usize;
-        if relative_tile == 0 { continue; }
-        if relative_tile % 3 == 1 {
-            entity_commands.insert(Chance);
-            continue;
-        }
+        if relative_tile == 0 { entity_commands.insert(Corner); continue; }
+        if relative_tile % 3 == 1 { entity_commands.insert(Chance); continue; }
 
         if current_group_fill % 3 == 0 {
             current_group += 1;
@@ -90,7 +88,12 @@ pub fn initialize_players(
         current_group_fill += 1;
     }
 
-    event_writer.send(NextTurn(None));
+    for entity in players.list.values() {
+        commands.get_entity(*entity).expect("Could not find a valid player in initialization")
+            .insert(Position::new(spaces.list[0].to_bits()));
+    }
+
+    //sevent_writer.send(NextTurn(None));
 }
 
 pub fn reset_game() {}

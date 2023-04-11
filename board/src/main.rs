@@ -27,6 +27,7 @@ fn main() {
         .add_system(generator::reset_game.in_schedule(OnExit(state::GameState::InGame)))
         .add_systems(
             (
+                message::message_receive,
                 message::next_turn,
                 message::reward_player
             )
@@ -38,13 +39,15 @@ fn main() {
                 server::authorize_player,
                 server::connect_player,
                 server::disconnect_player,
-                server::tick,
-                message::message_receive
+                server::tick
             )
             .chain()
             .in_set(ReceiveEvents)
         )
         .add_startup_system(server::initialize_server)
+
+        .add_event::<message::AwardPlayer>()
+        .add_event::<message::NextTurn>()
 
         .run();
 }

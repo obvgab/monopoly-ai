@@ -90,12 +90,14 @@ pub fn next_turn(
             let mut property = spaces.list.iter().position(|entity| entity.to_bits() == *position.tile).expect("Couldn't find current position of player in Vec form");
             let mut random = rand::thread_rng();
 
-            property += random.gen_range(2..=12);
+            let roll = random.gen_range(2..=12) as usize;
+            property += roll;
             property %= spaces.list.len() - 1;
 
             *position.tile = spaces.list[property].to_bits();
         }
 
+        tiles.for_each(|tile| println!("{}", tile.0.to_bits()));
         let (_property, tile, corner, chance) = tiles.get(Entity::from_bits(*position.tile)).expect("Current player is sitting on an unknown tile");
         
         // TEMPORARY COST SPACE CODE

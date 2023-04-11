@@ -19,6 +19,8 @@ pub fn protocol_builder() -> Protocol {
         .add_component::<tile::Group>()
         .add_component::<tile::Probability>()
         .add_component::<tile::Chance>()
+        .add_component::<tile::Corner>()
+        .add_component::<tile::Tile>()
 
         // Channels
         .add_channel::<transfer::PlayerActionChannel>( // These don't **need** to be separate, but bidirectional is weird

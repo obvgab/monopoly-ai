@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent, DisconnectEvent}, transport::webrtc, CommandsExt};
-use monai_store::{Auth, player::Money};
+use monai_store::{Auth, player::{Money}};
 use crate::{state::{Players, Code, Tiles}, menu::BoardConfiguration};
 
 pub fn initialize_server(
@@ -83,7 +83,7 @@ pub fn connect_player(
         let entity = commands
             .spawn_empty()
             .enable_replication(&mut server)
-            .insert(Money::new(100))
+            .insert(Money::new(1000))
             .id();
 
         server.room_mut(&code.game_room).add_entity(&entity);
