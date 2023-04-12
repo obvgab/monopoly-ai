@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use naia_bevy_server::{Server, CommandsExt};
 use rand::Rng;
 use crate::{menu::BoardConfiguration, state::{Tiles, Players, Code}, message::NextTurn, SQUARE_SIZE};
-use monai_store::{tile::{Probability, Group, Chance, Corner, Tile, Tier}, player::Position};
+use monai_store::{tile::{Probability, Group, Chance, Corner, Tile, Tier}, player::Position, transfer::{StartGame, BoardUpdateChannel}};
 
 pub fn generate_board(
     code: Res<Code>,
@@ -57,6 +57,7 @@ pub fn initialize_players(
     mut spaces: ResMut<Tiles>,
     mut players: ResMut<Players>,
 
+    mut server: Server,
     mut commands: Commands
 ) {
     players.initial_player();
@@ -103,6 +104,7 @@ pub fn initialize_players(
             .insert(Position::new(spaces.list[0].to_bits()));
     }
 
+    server.broadcast_message::<BoardUpdateChannel, StartGame>(&StartGame);
     event_writer.send(NextTurn(None));
 }
 

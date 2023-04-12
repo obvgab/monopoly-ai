@@ -34,3 +34,11 @@ pub struct BeginTurn {
     // however, its nice to have access to a lot of information for the AI paramters
     pub available_actions: Vec<Action> // forces synchronous playing--going to have to change this later for suddeb debt and trading, make this Vec<Vec> soon
 }
+
+#[derive(Message)]
+pub struct SendPlayer {
+    pub id: u64
+}
+
+#[derive(Message)]
+pub struct StartGame;

@@ -23,9 +23,18 @@ fn main() {
             is_connected: false,
             name: "".into(),
             code: "".into(),
-            url: "".into()
+            url: "".into(),
+            can_buy: false,
+            can_sell: false,
+            entity: 0,
+            started: false
         })
-        .add_system(control::gui)
+        .add_systems(
+            (
+                control::gui,
+                control::begin_turn
+            )
+        )
 
         .run();
 }

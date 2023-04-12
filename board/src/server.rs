@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent, DisconnectEvent}, transport::webrtc, CommandsExt};
-use monai_store::{Auth, player::{Money}};
+use monai_store::{Auth, player::{Money}, transfer::{SendPlayer, BoardUpdateChannel}};
 use crate::{state::{Players, Code, Tiles}, menu::BoardConfiguration};
 
 pub fn initialize_server(
@@ -90,6 +90,8 @@ pub fn connect_player(
         players.list.insert(*key, entity);
 
         info!("Connected and spawned entity for {}, {}", players.name[key], user);
+
+        server.send_message::<BoardUpdateChannel, SendPlayer>(key, &SendPlayer { id: entity.to_bits() })
     }
 }
 
