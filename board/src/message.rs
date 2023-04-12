@@ -25,7 +25,7 @@ pub fn message_receive(
 
         for (key, _message) in events.read::<PlayerActionChannel, BuyOwnable>() {
             let (player_token, mut money, position) = tokens.get_mut(players.list[&key]).expect("Could not find player from key on buy");
-            let (_, mut tile, _, _) = tiles.get_mut(Entity::from_bits(*position.tile)).expect("Player is not on a space");
+            let (_entity, mut tile, _, _) = tiles.get_mut(Entity::from_bits(*position.tile)).expect("Player is not on a space");
 
             *money.worth -= *tile.cost;
             *tile.owner = Some(player_token.to_bits());

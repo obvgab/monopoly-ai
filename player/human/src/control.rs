@@ -78,6 +78,9 @@ pub fn gui( // separate this into multiple functions later
                         row.label(format!("{:#?}", entity));
                         if row.button("Sell").clicked() {
                             // also should match entities
+                            // ! CRITICAL: THIS IS DESYNCED, THE TILES ARE **NOT** UNIFORM WITH THE SERVER!
+                            // ! We may need to transfer a hashmap between server and client to give translations.
+                            // ! Later refactor, maybe don't use server Entities for tracking?
                             client.send_message::<PlayerActionChannel, SellOwnable>(&SellOwnable { id: entity.to_bits() });
                         }
                     });
