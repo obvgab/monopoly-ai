@@ -1,6 +1,6 @@
 use bevy::{prelude::*};
 use bevy_egui::{egui, EguiContexts};
-use monai_store::{Auth, transfer::{BoardUpdateChannel, BeginTurn, SendPlayer, StartGame, PlayerActionChannel, BuyOwnable, SellOwnable, Forfeit}, player::{Action, Money, Position}, tile::{Tile, Chance, Corner}};
+use monai_store::{Auth, transfer::{BoardUpdateChannel, BeginTurn, SendPlayer, StartGame, PlayerActionChannel, BuyOwnable, SellOwnable, Forfeit, EndTurn}, player::{Action, Money, Position}, tile::{Tile, Chance, Corner, ServerSide}};
 use naia_bevy_client::{Client, transport::webrtc, events::MessageEvents};
 
 #[derive(Resource)]
@@ -11,6 +11,7 @@ pub struct StatefulInformation {
     pub url: String,
     pub can_buy: bool,
     pub can_sell: bool,
+    pub can_end: bool,
     pub entity: u64,
     pub started: bool,
 }
@@ -18,7 +19,7 @@ pub struct StatefulInformation {
 pub fn gui( // separate this into multiple functions later
     mut stateful: ResMut<StatefulInformation>,
 
-    tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>), (Without<Money>, Without<Position>)>,
+    tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
     tokens: Query<(Entity, &mut Money, &Position), (Without<Tile>, Without<Corner>, Without<Chance>)>,
 
     mut client: Client,
@@ -72,25 +73,29 @@ pub fn gui( // separate this into multiple functions later
 
             ui.label("Properties");
             ui.separator();
-            tiles.for_each(|(entity, tile, _, _)| { // add homes/houses later
+            tiles.for_each(|(_, tile, _, _, server_side)| { // add homes/houses later
                 if *tile.owner == Some(stateful.entity) {
                     ui.horizontal(|row| {
-                        row.label(format!("{:#?}", entity));
-                        if row.button("Sell").clicked() {
-                            // also should match entities
-                            // ! CRITICAL: THIS IS DESYNCED, THE TILES ARE **NOT** UNIFORM WITH THE SERVER!
-                            // ! We may need to transfer a hashmap between server and client to give translations.
-                            // ! Later refactor, maybe don't use server Entities for tracking?
-                            client.send_message::<PlayerActionChannel, SellOwnable>(&SellOwnable { id: entity.to_bits() });
+                        row.label(format!("{:#?}", Entity::from_bits(*server_side.id)));
+                        if stateful.can_sell && row.button("Sell").clicked() {
+                            client.send_message::<PlayerActionChannel, SellOwnable>(&SellOwnable { id: *server_side.id });
                         }
                     });
                 }
             });
 
             ui.separator();
-            if ui.button("Forfeit").clicked() {
-                client.send_message::<PlayerActionChannel, Forfeit>(&Forfeit);
-            }
+            ui.horizontal(|row| {
+                if row.button("Forfeit").clicked() {
+                    client.send_message::<PlayerActionChannel, Forfeit>(&Forfeit);
+                }
+                if stateful.can_end && row.button("End Turn").clicked() {
+                    client.send_message::<PlayerActionChannel, EndTurn>(&EndTurn);
+                    stateful.can_buy = false;
+                    stateful.can_sell = false;
+                    stateful.can_end = false;
+                }
+            });
         }
     });
 }
@@ -112,6 +117,8 @@ pub fn begin_turn(
                     }
                     _ => {} // add more later
                 }
+
+                stateful.can_end = true;
             }
         }
 

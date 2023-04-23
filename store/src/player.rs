@@ -33,3 +33,14 @@ pub enum Action {
     Purchase,
     // More later
 }
+
+#[derive(Component, Replicate)]
+pub struct ServerPlayer {
+    pub id: Property<u64>
+}
+
+impl ServerPlayer {
+    pub fn new(server: u64) -> Self {
+        ServerPlayer::new_complete(server)
+    }
+}

@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bevy = { version = "0.10" }
+naia-bevy-client = { version = "0.20", features = ["transport_webrtc"] }
+monai_store = { path = "../../store" }
+dfdx = { version = "0.11.1" }

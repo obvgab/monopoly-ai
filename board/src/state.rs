@@ -51,7 +51,7 @@ impl Players { // we might not **need** to deref here
         let total_size = counter.len();
 
         current_position += 1;
-        current_position %= total_size - 1;
+        current_position %= total_size;
 
         self.current = Some(counter[current_position]);
     }

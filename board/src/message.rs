@@ -92,7 +92,7 @@ pub fn next_turn(
 
             let roll = random.gen_range(2..=12) as usize;
             property += roll;
-            property %= spaces.list.len() - 1;
+            property %= spaces.list.len();
 
             *position.tile = spaces.list[property].to_bits();
         }

@@ -16,8 +16,10 @@ pub fn protocol_builder() -> Protocol {
         // Components
         .add_component::<player::Money>()
         .add_component::<player::Position>()
+        .add_component::<player::ServerPlayer>()
+
         .add_component::<tile::Group>()
-        .add_component::<tile::Probability>()
+        .add_component::<tile::ServerSide>()
         .add_component::<tile::Chance>()
         .add_component::<tile::Corner>()
         .add_component::<tile::Tile>()

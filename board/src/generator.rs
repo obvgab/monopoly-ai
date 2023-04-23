@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use naia_bevy_server::{Server, CommandsExt};
 use rand::Rng;
 use crate::{menu::BoardConfiguration, state::{Tiles, Players, Code}, message::NextTurn, SQUARE_SIZE};
-use monai_store::{tile::{Probability, Group, Chance, Corner, Tile, Tier}, player::Position, transfer::{StartGame, BoardUpdateChannel}};
+use monai_store::{tile::{ServerSide, Group, Chance, Corner, Tile, Tier}, player::{Position, ServerPlayer}, transfer::{StartGame, BoardUpdateChannel}};
 
 pub fn generate_board(
     code: Res<Code>,
@@ -72,7 +72,7 @@ pub fn initialize_players(
         if turns % 30 == 0 { last_tile = 0; } 
 
         last_tile += random.gen_range(2..=12);
-        last_tile %= spaces.list.len() - 1;
+        last_tile %= spaces.list.len();
 
         spaces.tested_probability[last_tile] += 1;
     }
@@ -82,7 +82,7 @@ pub fn initialize_players(
 
     for tile in 0..spaces.list.len() {
         let mut entity_commands = commands.get_entity(spaces.list[tile]).expect("Ghost tile found");
-        entity_commands.insert(Probability::new(spaces.tested_probability[tile] as f32 / runs as f32));
+        entity_commands.insert(ServerSide::new(spaces.tested_probability[tile] as f32 / runs as f32, entity_commands.id().to_bits()));
         entity_commands.insert(Tile::new(Tier::None, None, 100)); // This wont run??
 
         let relative_tile = tile % (configuration.squares / configuration.corners) as usize;
@@ -101,7 +101,8 @@ pub fn initialize_players(
 
     for entity in players.list.values() {
         commands.get_entity(*entity).expect("Could not find a valid player in initialization")
-            .insert(Position::new(spaces.list[0].to_bits()));
+            .insert(Position::new(spaces.list[0].to_bits()))
+            .insert(ServerPlayer::new(entity.to_bits()));
     }
 
     server.broadcast_message::<BoardUpdateChannel, StartGame>(&StartGame);
