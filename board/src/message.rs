@@ -108,9 +108,11 @@ pub fn next_turn(
 
         let mut action_space: Vec<Action> = vec![];
         // TEMPORARY ACTION SPACE CODE, MONO ACTIONS ONLY
-        if *money.worth < 0 { action_space.push(Action::Sell) } else if *tile.tier == Tier::None && corner.is_none() && chance.is_none() { action_space.push(Action::Purchase); }
+        action_space.push(Action::Sell);
         action_space.push(Action::None);
+        if *money.worth >= 0 && *tile.tier == Tier::None && corner.is_none() && chance.is_none() { action_space.push(Action::Purchase); }
         // END TEMPORARY ACTION SPACE
+
         let new_turn = BeginTurn {
             available_actions: action_space
         };
