@@ -135,7 +135,7 @@ pub fn message_event( // action picker
 
             let state: [f32; STATE] = 
                 squares.iter().chain(players.iter())
-                    .map(|v| *v as f32).collect::<Vec<f32>>()
+                    .map(|v| (*v as f32).log10()).collect::<Vec<f32>>() // change .log10()
                     .try_into().expect("Couldn't convert state");
             let state = stateful.device.tensor(state);
 
@@ -150,9 +150,8 @@ pub fn message_event( // action picker
 
             // let action_type_idx = (action_type * action_type_mask).softmax().max;
             // let action_selection_idx = (action_selection * action_selection_mask).softmax();
-
-            dbg!(action_type.softmax());
-            dbg!(action_selection.softmax());
+            dbg!((action_type + action_type_mask).softmax());
+            dbg!((action_selection + action_selection_mask).softmax());
 
             // merge models after a bit
         }
