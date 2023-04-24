@@ -80,10 +80,10 @@ pub fn initialize_players(
     let mut current_group = -1;
     let mut current_group_fill = 0;
 
-    for tile in 0..spaces.list.len() {
+    for tile in 0..spaces.list.len() { // convert this to .enumerate() later
         let mut entity_commands = commands.get_entity(spaces.list[tile]).expect("Ghost tile found");
-        entity_commands.insert(ServerSide::new(spaces.tested_probability[tile] as f32 / runs as f32, entity_commands.id().to_bits()));
-        entity_commands.insert(Tile::new(Tier::None, None, 100)); // This wont run??
+        entity_commands.insert(ServerSide::new(spaces.tested_probability[tile] as f32 / runs as f32, entity_commands.id().to_bits(), tile));
+        entity_commands.insert(Tile::new(Tier::None, None, 100));
 
         let relative_tile = tile % (configuration.squares / configuration.corners) as usize;
         if relative_tile == 0 { entity_commands.insert(Corner); continue; }
@@ -99,10 +99,10 @@ pub fn initialize_players(
         current_group_fill += 1;
     }
 
-    for entity in players.list.values() {
+    for (index, entity) in players.list.values().enumerate() {
         commands.get_entity(*entity).expect("Could not find a valid player in initialization")
             .insert(Position::new(spaces.list[0].to_bits()))
-            .insert(ServerPlayer::new(entity.to_bits()));
+            .insert(ServerPlayer::new(entity.to_bits(), index));
     }
 
     server.broadcast_message::<BoardUpdateChannel, StartGame>(&StartGame);

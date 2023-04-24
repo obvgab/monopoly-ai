@@ -20,6 +20,8 @@ fn main() {
         .insert_resource(ClientResources { url: args[1].clone(), code: args[2].clone(), name: args[3].clone() })
         .add_startup_system(connect_client)
 
+        .add_system(model::message_event)
+
         .run();
 }
 

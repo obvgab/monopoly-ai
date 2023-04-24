@@ -36,11 +36,12 @@ pub enum Action {
 
 #[derive(Component, Replicate)]
 pub struct ServerPlayer {
-    pub id: Property<u64>
+    pub id: Property<u64>,
+    pub index: Property<usize>
 }
 
 impl ServerPlayer {
-    pub fn new(server: u64) -> Self {
-        ServerPlayer::new_complete(server)
+    pub fn new(server: u64, index: usize) -> Self {
+        ServerPlayer::new_complete(server, index)
     }
 }

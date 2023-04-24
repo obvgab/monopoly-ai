@@ -15,12 +15,13 @@ impl Group {
 #[derive(Component, Replicate)]
 pub struct ServerSide {
     pub probability: Property<f32>,
-    pub id: Property<u64>
+    pub id: Property<u64>,
+    pub index: Property<usize>
 }
 
 impl ServerSide {
-    pub fn new(probability: f32, id: u64) -> Self {
-        ServerSide::new_complete(probability, id)
+    pub fn new(probability: f32, id: u64, index: usize) -> Self {
+        ServerSide::new_complete(probability, id, index)
     }
 }
 

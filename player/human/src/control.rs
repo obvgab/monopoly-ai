@@ -61,7 +61,7 @@ pub fn gui( // separate this into multiple functions later
             let (_entity, money, position, _server_entity) = {
                 let mut last: Option<(Entity, &Money, &Position, &ServerPlayer)> = None;
                 
-                for x in tokens.iter() {
+                for x in &tokens {
                     if *x.3.id == stateful.entity {
                         last = Some(x);
                     }
@@ -70,11 +70,11 @@ pub fn gui( // separate this into multiple functions later
                 last.expect("Couldn't find current player from server reference")
             };
 
-            ui.label(format!("Player ID: {:#?}", Entity::from_bits(stateful.entity)));
+            ui.label(format!("Player ID: {:#?}", stateful.entity));
             ui.label(format!("Money: {}", *money.worth));
 
             ui.horizontal(|row| {
-                row.label(format!("Space {:#?}", Entity::from_bits(*position.tile))); // replace with names later
+                row.label(format!("Space {:#?}", *position.tile)); // replace with names later
                 if stateful.can_buy && row.button("Buy").clicked() {
                     client.send_message::<PlayerActionChannel, BuyOwnable>(&BuyOwnable);
                 }
@@ -85,7 +85,7 @@ pub fn gui( // separate this into multiple functions later
             tiles.for_each(|(_, tile, _, _, server_side)| { // add homes/houses later
                 if *tile.owner == Some(stateful.entity) {
                     ui.horizontal(|row| {
-                        row.label(format!("{:#?}", Entity::from_bits(*server_side.id)));
+                        row.label(format!("{:#?}", *server_side.id));
                         if stateful.can_sell && row.button("Sell").clicked() {
                             client.send_message::<PlayerActionChannel, SellOwnable>(&SellOwnable { id: *server_side.id });
                         }
