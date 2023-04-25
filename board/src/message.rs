@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use bevy::prelude::*;
 use rand::Rng;
 use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel}, tile::{Chance, Tile, Corner, Tier}, player::{Money, Position, Action}};
@@ -110,8 +108,9 @@ pub fn next_turn(
 
         let mut action_space: Vec<Action> = vec![];
         // TEMPORARY ACTION SPACE CODE, MONO ACTIONS ONLY
-        action_space.push(Action::Sell);
         action_space.push(Action::None);
+        if !tiles.iter().filter(|x| *x.1.owner == Some(token.to_bits()))
+            .collect::<Vec<(Entity, &Tile, Option<&Corner>, Option<&Chance>)>>().is_empty() { action_space.push(Action::Sell); }
         if *money.worth >= 0 && *tile.tier == Tier::None && corner.is_none() && chance.is_none() { action_space.push(Action::Purchase); }
         // END TEMPORARY ACTION SPACE
 
