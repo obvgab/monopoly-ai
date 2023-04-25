@@ -42,3 +42,8 @@ pub struct SendPlayer {
 
 #[derive(Message)]
 pub struct StartGame;
+
+#[derive(Message)]
+pub struct IssueReward {
+    pub reward: f32
+}

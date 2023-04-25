@@ -45,6 +45,7 @@ pub fn protocol_builder() -> Protocol {
         .add_message::<transfer::BeginTurn>()
         .add_message::<transfer::SendPlayer>()
         .add_message::<transfer::StartGame>()
+        .add_message::<transfer::IssueReward>()
 
         .build()
 }

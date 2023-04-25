@@ -1,7 +1,8 @@
 use bevy::prelude::*;
-use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module}, tensor::{Cpu, Gradients, TensorFrom}};
-use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
+use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, mse_loss, Optimizer}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
+use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable, IssueReward}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
 use naia_bevy_client::{events::MessageEvents, Client};
+use rand::{prelude::Distribution, seq::SliceRandom};
 
 const PLAYERS: usize = 4;
 const SQUARES: usize = 40;
@@ -9,7 +10,7 @@ const SQUARES: usize = 40;
 const STATE: usize = SQUARES + (PLAYERS * 2); // Whether the user owns a square + each player's worth and position
 const ACTION: usize = 3;
 
-const BATCH: usize = 32; // number of turns before learning
+const BATCH: usize = 32; // number of turns before learning, 30 is the average for a game
 const DISCOUNT: f32 = 0.9;
 const DECAY: f32 = 0.0002;
 
@@ -43,10 +44,10 @@ pub struct StatefulInformation {
     pub entity: u64,
     pub target: QModule,
     pub model: QModule,
-    pub gradients: Gradients<f32, Device>,
     pub optimizer: Adam<QModule, f32, Device>,
     pub epsilon: f32,
-    pub experience: Vec<Transition>
+    pub experience: Vec<Transition>,
+    pub steps: i32
 }
 
 type Transition = (
@@ -59,7 +60,6 @@ type Transition = (
 pub fn add_stateful(world: &mut World) { // &mut World makes exclusive, first startup system. Stateful should always exist
     let dev = Device::default();
     let model = dev.build_module::<QModel, f32>();
-    let grads = model.alloc_grads();
     let optim = Adam::new(&model, AdamConfig::default());
 
     world.insert_non_send_resource(StatefulInformation {
@@ -67,10 +67,10 @@ pub fn add_stateful(world: &mut World) { // &mut World makes exclusive, first st
         entity: 0,
         target: model.clone(), // target as first argument to avoid borrow checker issues
         model: model,
-        gradients: grads,
-        optimizer: optim,
+        optimizer: optim, // We remove gradients since it annihilates the borrow checker
         epsilon: 1f32,
-        experience: vec![]
+        experience: vec![],
+        steps: 0
     });
 }
 
@@ -86,69 +86,56 @@ pub fn message_event( // action picker
     for events in event_reader.iter() {
         for turn in events.read::<BoardUpdateChannel, BeginTurn>() {
             // First see if we are exploring vs exploiting
-            // Query state and create action masks
-            let mut squares = [0; SQUARES];
-            let mut action_selection_mask = [0.0; SQUARES]; // maybe make this 0/1
-            for (_, tile, _, _, server_side) in &tiles {
-                if *tile.owner == Some(stateful.entity) {
-                    squares[*server_side.index] = 1;
-                    action_selection_mask[*server_side.index] = 1.0;
-                } else if tile.owner.is_some() {
-                    squares[*server_side.index] = 2; // We don't own and can't buy the property
-                }
-            }
-            let action_selection_mask = stateful.device.tensor(action_selection_mask.map(|v: f32| v.log10()));
-
-            let mut players = [0; PLAYERS * 2];
-            for (_, money, position, server_side) in &tokens {
-                players[*server_side.index * 2] = {
-                    let mut net_worth = *money.worth;
-                    tiles.for_each(|x| {
-                        if *x.1.owner == Some(stateful.entity) {
-                            net_worth += (1.5 * *x.1.cost as f32).ceil() as i32;
-                        }
-                    });
-
-                    net_worth
-                };
-
-                players[*server_side.index * 2 + 1] = {
-                    let mut location = None;
-
-                    for x in &tiles { // breaks when first player, message is received before tiles spawn?
-                        if *x.4.id == *position.tile {
-                            location = Some(*x.4.index);
-                        }
+            let state = get_state(&tiles, &tokens, stateful.entity);
+            let action: (usize, usize);
+            if stateful.epsilon > rand::random::<f32>() { // explore!
+                let available = turn.available_actions.iter().map(|x| {
+                    match x {
+                        Action::Purchase => 0,
+                        Action::Sell => 1,
+                        Action::None => 2
                     }
+                }).collect::<Vec<usize>>();
 
-                    location.expect("Could not find player position") as i32
+                let squares = tiles.iter()
+                    .filter(|(_, x, _, _, _)| *x.owner == Some(stateful.entity))
+                    .map(|(_, _, _, _, x)| *x.index).collect::<Vec<usize>>();
+
+                action = 
+                    (*available.choose(&mut rand::thread_rng()).expect("Couldn't choose explore option"),
+                    *squares.choose(&mut rand::thread_rng()).unwrap_or(&0));
+            } else { // exploit.
+                // Query state and create action masks
+                let mut action_selection_mask = [0.0; SQUARES]; // maybe make this 0/1
+                for (_, tile, _, _, server_side) in &tiles {
+                    if *tile.owner == Some(stateful.entity) {
+                        action_selection_mask[*server_side.index] = 1.0;
+                    }
                 }
-            }
+                let action_selection_mask = stateful.device.tensor(action_selection_mask.map(|v: f32| v.log10()));
 
-            let mut action_type_mask = [0.0; ACTION];
-            for action in turn.available_actions {
-                match action {
-                    Action::Purchase => action_type_mask[0] = 1.0,
-                    Action::Sell => action_type_mask[1] = 1.0,
-                    Action::None => action_type_mask[2] = 1.0
+                let mut action_type_mask = [0.0; ACTION];
+                for action in turn.available_actions {
+                    match action {
+                        Action::Purchase => action_type_mask[0] = 1.0,
+                        Action::Sell => action_type_mask[1] = 1.0,
+                        Action::None => action_type_mask[2] = 1.0
+                    }
                 }
+                let action_type_mask = stateful.device.tensor(action_type_mask.map(|v: f32| v.log10()));
+
+                let state_tensor = stateful.device.tensor(state);
+
+                // make tensors
+                let (action_type, action_selection) = 
+                    stateful.model.forward(state_tensor);
+                action = 
+                    ((action_type + action_type_mask).softmax().as_vec().iter().enumerate()
+                        .max_by(|(_, a), (_, b)| a.total_cmp(b)).map(|(i, _)| i).expect("Head empty"),
+                    (action_selection + action_selection_mask).softmax().as_vec().iter().enumerate()
+                        .max_by(|(_, a), (_, b)| a.total_cmp(b)).map(|(i, _)| i).expect("Head empty"));
             }
-            let action_type_mask = stateful.device.tensor(action_type_mask.map(|v: f32| v.log10()));
-
-            let state: [f32; STATE] = 
-                squares.iter().chain(players.iter())
-                    .map(|v| *v as f32).collect::<Vec<f32>>()
-                    .try_into().expect("Couldn't convert state");
-            let state_tensor = stateful.device.tensor(state);
-
-            // make tensors
-            let (action_type, action_selection) = 
-                stateful.model.forward(state_tensor);
-            let action = 
-                ((action_type + action_type_mask).softmax().as_vec().iter().enumerate()
-                    .max_by(|(_, a), (_, b)| a.total_cmp(b)).map(|(i, _)| i).expect("Head empty"),
-                (action_selection + action_selection_mask).softmax().as_vec().iter().enumerate()
-                    .max_by(|(_, a), (_, b)| a.total_cmp(b)).map(|(i, _)| i).expect("Head empty"));
+            stateful.epsilon = (stateful.epsilon - DECAY).min(0.05);
 
             match action.0 {
                 0 => {
@@ -176,16 +163,141 @@ pub fn message_event( // action picker
             }
 
             stateful.experience.push((state, 0.0, action, None)); // Default case for the experience. When the server responds we will change .1 and .3, if necessary
-            // merge models after a bit
         }
 
         for entity in events.read::<BoardUpdateChannel, SendPlayer>() {
             stateful.entity = entity.id;
         }
+
+        for issued in events.read::<BoardUpdateChannel, IssueReward>() {
+            let entity = stateful.entity;
+            if let Some(transition) = stateful.experience.last_mut() {
+                transition.1 = issued.reward;
+                transition.3 = Some(get_state(&tiles, &tokens, entity));
+            }
+
+            if stateful.experience.len() > BATCH {
+                stateful.train();
+            }
+
+            if stateful.steps > 10 { // arbitrary number for episodes between merges
+                stateful.target = stateful.model.clone();
+                stateful.steps = 0;
+            } else {
+                stateful.steps += 1;
+            }
+        }
     }
 }
 
-pub fn _train() {}
+pub fn get_state(
+    tiles: &Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
+    tokens: &Query<(Entity, &mut Money, &Position, &ServerPlayer), (Without<Tile>, Without<Corner>, Without<Chance>)>,
+
+    owner: u64
+) -> [f32; SQUARES + (PLAYERS * 2)] {
+    let mut players = [0; PLAYERS * 2];
+    for (_, money, position, server_side) in tokens {
+        players[*server_side.index * 2] = {
+            let mut net_worth = *money.worth;
+            tiles.for_each(|x| {
+                if *x.1.owner == Some(owner) {
+                    net_worth += (1.5 * *x.1.cost as f32).ceil() as i32;
+                }
+            });
+
+            net_worth
+        };
+
+        players[*server_side.index * 2 + 1] = {
+            let mut location = None;
+
+            for x in tiles { // breaks when first player, message is received before tiles spawn?
+                if *x.4.id == *position.tile {
+                    location = Some(*x.4.index);
+                }
+            }
+
+            location.expect("Could not find player position") as i32
+        }
+    }
+
+    let mut squares = [0; SQUARES];
+    for (_, tile, _, _, server_side) in tiles {
+        if *tile.owner == Some(owner) {
+            squares[*server_side.index] = 1;
+        } else if tile.owner.is_some() {
+            squares[*server_side.index] = 2; // We don't own and can't buy the property
+        }
+    }
+
+    let state: [f32; STATE] = 
+    squares.iter().chain(players.iter())
+        .map(|v| *v as f32).collect::<Vec<f32>>()
+        .try_into().expect("Couldn't convert state");
+
+    return state;
+}
+
+impl StatefulInformation {
+    pub fn train(&mut self) {
+        let mut rng = rand::thread_rng();
+        let uniform = rand::distributions::Uniform::from(0..self.experience.len());
+        let sample: Vec<Transition> = (0..BATCH).map(|_| self.experience[uniform.sample(&mut rng)]).collect();
+
+        let previous: [[f32; STATE]; BATCH] = sample.iter().map(|x| x.0)
+            .collect::<Vec<[f32; STATE]>>().try_into().expect("Couldn't map experiences");
+        let previous = self.device.tensor(previous);
+
+        let gradients = self.model.alloc_grads();
+        let predictions = self.model.forward(previous.trace(gradients));
+
+        let (action_type, action_selection): ([usize; BATCH], [usize; BATCH]) = 
+            (sample.iter().map(|x| x.2.0)
+                .collect::<Vec<usize>>().try_into().expect("Couldn't map action types"),
+            sample.iter().map(|x| x.2.1)
+                .collect::<Vec<usize>>().try_into().expect("Couldn't map action selections"));
+        let (action_type, action_selection) = 
+            (self.device.tensor(action_type), self.device.tensor(action_selection));
+
+        let predictions = 
+            (predictions.0.select(action_type), predictions.1.select(action_selection));
+
+        // target network time
+        let mut target_predictions: ([f32; BATCH], [f32; BATCH]) = ([0.0; BATCH], [0.0; BATCH]);
+        for (index, experience) in sample.iter().enumerate() {
+            match experience.3 {
+                Some(next_state) => {
+                    let (target_type, target_selection) = 
+                        self.model.forward(self.device.tensor(next_state));
+                        
+                    let action = 
+                        (target_type.as_vec().into_iter().max_by(|a, b| a.total_cmp(b)).expect("Could not find max quality"),
+                        target_selection.as_vec().into_iter().max_by(|a, b| a.total_cmp(b)).expect("Could not find max quality"));
+
+                    // hey! look! the bellman equation! kind of...
+                    // reward + (maxNextQ * discount), for both heads
+                    target_predictions.0[index] = action.0 * DISCOUNT + experience.1;
+                    target_predictions.1[index] = action.1 * DISCOUNT + experience.1;
+                }
+                None => { // terminal state, reward is the same
+                    target_predictions.0[index] = experience.1;
+                    target_predictions.1[index] = experience.1;
+                }
+            }
+        }
+        let target_predictions = 
+            (self.device.tensor(target_predictions.0), self.device.tensor(target_predictions.1));
+
+        let losses = 
+            (mse_loss(predictions.0, target_predictions.0),
+            mse_loss(predictions.1, target_predictions.1));
+        let loss = (losses.0 + losses.1).backward(); // this may become an issue?
+
+        self.optimizer.update(&mut self.model, &loss).expect("Updating failed");
+    }
+}
+
 
 // ! We likely need TD learning (temporal difference)
 // !    the working idea is:
@@ -199,4 +311,5 @@ pub fn _train() {}
 // https://towardsdatascience.com/rainbow-dqn-the-best-reinforcement-learning-has-to-offer-166cb8ed2f86
 // PASS GO!!
 // Focus on MAXIMIZING rewards
-// RESTART GAME, CALCULATE BANKRUPTCY
+// RESTART GAME, PENALIZE BANKRUPTCY
+// Can't be player 1??? Maybe property additions are too fast?

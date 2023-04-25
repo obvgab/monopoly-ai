@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use rand::Rng;
-use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel}, tile::{Chance, Tile, Corner, Tier}, player::{Money, Position, Action}};
+use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward}, tile::{Chance, Tile, Corner, Tier}, player::{Money, Position, Action}};
 use naia_bevy_server::{events::MessageEvents, Server, UserKey};
 use crate::state::{Players, Tiles};
 
@@ -67,7 +67,7 @@ pub fn next_turn(
 ) {
     for NextTurn(last_player) in event_reader.iter() {
         if let Some(key) = last_player {
-            let (_, money, _) = tokens.get(players.list[key]).expect("Last player is missing");
+            let (entity, money, _) = tokens.get(players.list[key]).expect("Last player is missing");
 
             if *money.worth < 0 { // bankruptcy handling
                 let entity_bits = players.list.remove(&key).expect("Non existant player on channel").to_bits();
@@ -81,8 +81,30 @@ pub fn next_turn(
                 });
     
                 commands.get_entity(Entity::from_bits(entity_bits)).expect("Non existant player on channel").despawn_recursive();
+                server.send_message::<BoardUpdateChannel, IssueReward>(key, &IssueReward { reward: -50.0 }); // arbitrarily negative reward
+            } else {
+                let mut net_worth = *money.worth;
+                let mut sum_other_worths = 0;
+
+                tiles.iter().for_each(|(_, relinquish_tile, _, _)| {
+                    if *relinquish_tile.owner == Some(entity.to_bits()) {
+                        net_worth += (1.5 * *relinquish_tile.cost as f32).ceil() as i32;
+                    } else {
+                        sum_other_worths += (1.5 * *relinquish_tile.cost as f32).ceil() as i32;
+                    }
+                });
+
+                tokens.iter().for_each(|(other_entity, money, _)| {
+                    if other_entity == entity { return; }
+                    sum_other_worths += *money.worth;
+                });
+
+                server.send_message::<BoardUpdateChannel, IssueReward>( // reward is our share of the total worth in the game
+                    key, &IssueReward { reward: (net_worth as f32) / sum_other_worths as f32});
             }
         }
+        
+        // Check
 
         let (token, mut money, mut position) = tokens.get_mut(*players.current_player_entity()).expect("Current player could not be found between turns");
 
@@ -92,7 +114,10 @@ pub fn next_turn(
 
             let roll = random.gen_range(2..=12) as usize;
             property += roll;
-            property %= spaces.list.len();
+            if property >= spaces.list.len() {
+                property %= spaces.list.len();
+                *money.worth += 200;
+            }
 
             *position.tile = spaces.list[property].to_bits();
         }
