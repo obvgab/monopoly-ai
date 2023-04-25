@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, mse_loss, Optimizer}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
+use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, huber_loss, Optimizer}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
 use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable, IssueReward}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
 use naia_bevy_client::{events::MessageEvents, Client};
 use rand::{prelude::Distribution, seq::SliceRandom};
@@ -290,8 +290,8 @@ impl StatefulInformation {
             (self.device.tensor(target_predictions.0), self.device.tensor(target_predictions.1));
 
         let losses = 
-            (mse_loss(predictions.0, target_predictions.0),
-            mse_loss(predictions.1, target_predictions.1));
+            (huber_loss(predictions.0, target_predictions.0, 0.5), // test different deltas
+            huber_loss(predictions.1, target_predictions.1, 0.5));
         let loss = (losses.0 + losses.1).backward(); // this may become an issue?
 
         self.optimizer.update(&mut self.model, &loss).expect("Updating failed");
