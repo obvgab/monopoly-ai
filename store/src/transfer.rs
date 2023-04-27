@@ -25,6 +25,9 @@ pub struct BuyOwnable;
 #[derive(Message)]
 pub struct EndTurn;
 
+#[derive(Message)]
+pub struct Ready;
+
 #[derive(Channel)]
 pub struct BoardUpdateChannel;
 
@@ -42,6 +45,9 @@ pub struct SendPlayer {
 
 #[derive(Message)]
 pub struct StartGame;
+
+#[derive(Message)]
+pub struct EndGame;
 
 #[derive(Message)]
 pub struct IssueReward {

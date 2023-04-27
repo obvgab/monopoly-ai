@@ -41,11 +41,13 @@ pub fn protocol_builder() -> Protocol {
         .add_message::<transfer::BuyOwnable>()
         .add_message::<transfer::EndTurn>()
         .add_message::<transfer::Forfeit>() // Realistically only available to human players
+        .add_message::<transfer::Ready>()
 
         .add_message::<transfer::BeginTurn>()
         .add_message::<transfer::SendPlayer>()
         .add_message::<transfer::StartGame>()
         .add_message::<transfer::IssueReward>()
+        .add_message::<transfer::EndGame>() // for resetting gamestate on clients
 
         .build()
 }

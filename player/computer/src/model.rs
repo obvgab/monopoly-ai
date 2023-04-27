@@ -3,16 +3,16 @@ use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU
 use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable, IssueReward}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
 use naia_bevy_client::{events::MessageEvents, Client};
 use rand::{prelude::Distribution, seq::SliceRandom};
+use crate::SQUARES;
 
 const PLAYERS: usize = 4;
-const SQUARES: usize = 40;
 
 const STATE: usize = SQUARES + (PLAYERS * 2); // Whether the user owns a square + each player's worth and position
 const ACTION: usize = 3;
 
 const BATCH: usize = 32; // number of turns before learning, 30 is the average for a game
 const DISCOUNT: f32 = 0.9;
-const DECAY: f32 = 0.0002;
+const DECAY: f32 = 0.005;
 
 type Device = Cpu;
 // type Device = Cuda;
@@ -89,6 +89,7 @@ pub fn message_event( // action picker
             let state = get_state(&tiles, &tokens, stateful.entity);
             let action: (usize, usize);
             if stateful.epsilon > rand::random::<f32>() { // explore!
+                println!("Exploring, epsilon {}", stateful.epsilon);
                 let available = turn.available_actions.iter().map(|x| {
                     match x {
                         Action::Purchase => 0,
@@ -101,10 +102,12 @@ pub fn message_event( // action picker
                     .filter(|(_, x, _, _, _)| *x.owner == Some(stateful.entity))
                     .map(|(_, _, _, _, x)| *x.index).collect::<Vec<usize>>();
 
+                println!("Available actions: {:?}\nAvailable squares: {:?}", available, squares);
                 action = 
                     (*available.choose(&mut rand::thread_rng()).expect("Couldn't choose explore option"),
                     *squares.choose(&mut rand::thread_rng()).unwrap_or(&0));
             } else { // exploit.
+                println!("Exploiting, epsilon {}", stateful.epsilon);
                 // Query state and create action masks
                 let mut action_selection_mask = [0.0; SQUARES]; // maybe make this 0/1
                 for (_, tile, _, _, server_side) in &tiles {
@@ -112,6 +115,7 @@ pub fn message_event( // action picker
                         action_selection_mask[*server_side.index] = 1.0;
                     }
                 }
+                println!("Squares mask: {:?}", action_selection_mask);
                 let action_selection_mask = stateful.device.tensor(action_selection_mask.map(|v: f32| v.log10()));
 
                 let mut action_type_mask = [0.0; ACTION];
@@ -122,11 +126,10 @@ pub fn message_event( // action picker
                         Action::None => action_type_mask[2] = 1.0
                     }
                 }
+                println!("Actions mask: {:?}", action_type_mask);
                 let action_type_mask = stateful.device.tensor(action_type_mask.map(|v: f32| v.log10()));
 
                 let state_tensor = stateful.device.tensor(state);
-
-                // make tensors
                 let (action_type, action_selection) = 
                     stateful.model.forward(state_tensor);
                 action = 
@@ -135,14 +138,14 @@ pub fn message_event( // action picker
                     (action_selection + action_selection_mask).softmax().as_vec().iter().enumerate()
                         .max_by(|(_, a), (_, b)| a.total_cmp(b)).map(|(i, _)| i).expect("Head empty"));
             }
-            stateful.epsilon = (stateful.epsilon - DECAY).min(0.05);
+            stateful.epsilon = (stateful.epsilon - DECAY).max(0.05);
 
             match action.0 {
                 0 => {
                     client.send_message::<PlayerActionChannel, BuyOwnable>(&BuyOwnable);
                     client.send_message::<PlayerActionChannel, EndTurn>(&EndTurn);
 
-                    info!("Bought property");
+                    println!("Bought property");
                 }
                 1 => {
                     let (_, _, _, _, server_side) = 
@@ -152,35 +155,34 @@ pub fn message_event( // action picker
                     client.send_message::<PlayerActionChannel, SellOwnable>(&SellOwnable { id: *server_side.id });
                     client.send_message::<PlayerActionChannel, EndTurn>(&EndTurn);
 
-                    info!("Sold property");
+                    println!("Sold property");
                 }
                 2 => {
                     client.send_message::<PlayerActionChannel, EndTurn>(&EndTurn);
 
-                    info!("Did not act");
+                    println!("Did not act");
                 }
-                _ => { error!("Invalid decision"); }
+                _ => { println!("Invalid decision"); }
             }
 
             stateful.experience.push((state, 0.0, action, None)); // Default case for the experience. When the server responds we will change .1 and .3, if necessary
         }
 
-        for entity in events.read::<BoardUpdateChannel, SendPlayer>() {
-            stateful.entity = entity.id;
-        }
-
         for issued in events.read::<BoardUpdateChannel, IssueReward>() {
             let entity = stateful.entity;
             if let Some(transition) = stateful.experience.last_mut() {
+                println!("Received reward {}", issued.reward);
                 transition.1 = issued.reward;
                 transition.3 = Some(get_state(&tiles, &tokens, entity));
             }
 
             if stateful.experience.len() > BATCH {
+                println!("Training model");
                 stateful.train();
             }
 
             if stateful.steps > 10 { // arbitrary number for episodes between merges
+                println!("Syncing target model");
                 stateful.target = stateful.model.clone();
                 stateful.steps = 0;
             } else {
@@ -298,18 +300,18 @@ impl StatefulInformation {
     }
 }
 
+pub fn read_entity(
+    mut stateful: NonSendMut<StatefulInformation>,
 
-// ! We likely need TD learning (temporal difference)
-// !    the working idea is:
-// * BeginTurn will make the agent take an action and start saving it
-// *    will need to eventually add a message for the server to give reward
-// *    after the reward is giving, next_state can either be right after or the next BeginTurn
-// *    this can be saved into a Vec<Transition> for our experiences
-// ? https://github.com/SilasMarvin/bevy-dfdx-and-the-classic-cart-pole/blob/main/src/main.rs#L37
-// ? https://github.com/coreylowman/dfdx/blob/main/examples/11-multi-headed.rs
-// ? https://github.com/coreylowman/dfdx/blob/main/examples/rl-dqn.rs
-// https://towardsdatascience.com/rainbow-dqn-the-best-reinforcement-learning-has-to-offer-166cb8ed2f86
-// PASS GO!!
-// Focus on MAXIMIZING rewards
-// RESTART GAME, PENALIZE BANKRUPTCY
-// Can't be player 1??? Maybe property additions are too fast?
+    mut event_reader: EventReader<MessageEvents>,
+) {
+    for events in event_reader.iter() {
+        for entity in events.read::<BoardUpdateChannel, SendPlayer>() {
+            println!("Entity assigned");
+            stateful.entity = entity.id;
+        }
+    }
+}
+
+// ? https://towardsdatascience.com/rainbow-dqn-the-best-reinforcement-learning-has-to-offer-166cb8ed2f86
+// RESTART GAME

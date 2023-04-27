@@ -18,7 +18,7 @@ pub fn initialize_server(
     server.listen(socket);
     
     // Make this random later
-    commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new() });
+    commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new(), ready: 0 });
     commands.insert_resource(Code { value: "MONAI".to_string(), game_room: server.make_room().key() });
     commands.insert_resource(BoardConfiguration { polygonal_board: false, corners: 4, squares: 40 });
     commands.insert_resource(Tiles { list: vec![], tested_probability: vec![], groups: vec![] });

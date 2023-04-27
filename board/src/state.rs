@@ -13,7 +13,8 @@ pub struct Code {
 pub struct Players {
     pub list: HashMap<UserKey, Entity>,
     pub current: Option<UserKey>,
-    pub name: HashMap<UserKey, String>
+    pub name: HashMap<UserKey, String>,
+    pub ready: usize
 }
 
 #[derive(Resource)]

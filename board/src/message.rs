@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use rand::Rng;
-use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward}, tile::{Chance, Tile, Corner, Tier}, player::{Money, Position, Action}};
+use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward, Ready}, tile::{Chance, Tile, Corner, Tier}, player::{Money, Position, Action}};
 use naia_bevy_server::{events::MessageEvents, Server, UserKey};
 use crate::state::{Players, Tiles};
 
@@ -36,7 +36,7 @@ pub fn message_receive(
             let (_, mut money, _) = tokens.get_mut(players.list[&key]).expect("Could not find player from key on sell");
             let (_, mut tile, _, _) = tiles.get_mut(Entity::from_bits(message.id)).expect("Player tried to sell unavailable space");
 
-            *money.worth += *tile.cost;
+            *money.worth += (*tile.cost as f32 * 0.8).ceil() as i32; // arbitrary
             *tile.owner = None;
             *tile.tier = Tier::None;
         }
@@ -46,6 +46,14 @@ pub fn message_receive(
         for (key, _message) in events.read::<PlayerActionChannel, EndTurn>() {
             players.next_player();
             event_writer.send(NextTurn(Some(key)));
+        }
+
+        for _ in events.read::<PlayerActionChannel, Ready>() {
+            players.ready += 1;
+            if players.ready == players.list.len() {
+                event_writer.send(NextTurn(None));
+                players.ready = 0;
+            }
         }
     }
 }
@@ -126,8 +134,8 @@ pub fn next_turn(
         
         // TEMPORARY COST SPACE CODE
         if *tile.owner != None && *tile.owner != Some(token.to_bits()) {
-            event_writer.send(AwardPlayer(Entity::from_bits(tile.owner.unwrap()), *tile.cost / 10));
-            *money.worth -= *tile.cost / 10;
+            event_writer.send(AwardPlayer(Entity::from_bits(tile.owner.unwrap()), *tile.cost)); // arbitrarily changing to not / 10
+            *money.worth -= *tile.cost; // arbitrarily changing to not / 10 to avoid stalemate
         }
         // END TEMPORARY COST SPACE
 
