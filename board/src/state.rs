@@ -14,6 +14,7 @@ pub struct Players {
     pub list: HashMap<UserKey, Entity>,
     pub current: Option<UserKey>,
     pub name: HashMap<UserKey, String>,
+    // connected by not alive players
     pub ready: usize
 }
 

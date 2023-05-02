@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use rand::Rng;
-use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward, Ready}, tile::{Chance, Tile, Corner, Tier}, player::{Money, Position, Action}};
+use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward, Ready}, tile::{Chance, Tile, Corner, Tier, ServerSide}, player::{Money, Position, Action}};
 use naia_bevy_server::{events::MessageEvents, Server, UserKey};
 use crate::state::{Players, Tiles};
 
@@ -9,7 +9,7 @@ pub fn message_receive(
 
     mut event_reader: EventReader<MessageEvents>,
     mut event_writer: EventWriter<NextTurn>,
-    mut tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>), (Without<Money>, Without<Position>)>,
+    mut tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
     mut tokens: Query<(Entity, &mut Money, &Position), (Without<Tile>, Without<Corner>, Without<Chance>)>//,
 
     // mut commands: Commands
@@ -25,7 +25,7 @@ pub fn message_receive(
 
         for (key, _message) in events.read::<PlayerActionChannel, BuyOwnable>() {
             let (player_token, mut money, position) = tokens.get_mut(players.list[&key]).expect("Could not find player from key on buy");
-            let (_entity, mut tile, _, _) = tiles.get_mut(Entity::from_bits(*position.tile)).expect("Player is not on a space");
+            let (_entity, mut tile, _, _, _) = tiles.get_mut(Entity::from_bits(*position.tile)).expect("Player is not on a space");
 
             *money.worth -= *tile.cost;
             *tile.owner = Some(player_token.to_bits());
@@ -34,7 +34,7 @@ pub fn message_receive(
 
         for (key, message) in events.read::<PlayerActionChannel, SellOwnable>() {
             let (_, mut money, _) = tokens.get_mut(players.list[&key]).expect("Could not find player from key on sell");
-            let (_, mut tile, _, _) = tiles.get_mut(Entity::from_bits(message.id)).expect("Player tried to sell unavailable space");
+            let (_, mut tile, _, _, _) = tiles.get_mut(Entity::from_bits(message.id)).expect("Player tried to sell unavailable space");
 
             *money.worth += (*tile.cost as f32 * 0.8).ceil() as i32; // arbitrary
             *tile.owner = None;
@@ -67,7 +67,7 @@ pub fn next_turn(
 
     mut event_reader: EventReader<NextTurn>,
     mut event_writer: EventWriter<AwardPlayer>,
-    mut tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>), (Without<Money>, Without<Position>)>,
+    mut tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
     mut tokens: Query<(Entity, &mut Money, &mut Position), (Without<Tile>, Without<Corner>, Without<Chance>)>,
 
     mut server: Server,
@@ -81,7 +81,7 @@ pub fn next_turn(
                 let entity_bits = players.list.remove(&key).expect("Non existant player on channel").to_bits();
                 players.name.remove(&key);
     
-                tiles.iter_mut().for_each(|(_, mut relinquish_tile, _, _)| {
+                tiles.iter_mut().for_each(|(_, mut relinquish_tile, _, _, _)| {
                     if *relinquish_tile.owner == Some(entity_bits) {
                         *relinquish_tile.owner = None;
                         *relinquish_tile.tier = Tier::None;
@@ -90,15 +90,20 @@ pub fn next_turn(
     
                 commands.get_entity(Entity::from_bits(entity_bits)).expect("Non existant player on channel").despawn_recursive();
                 server.send_message::<BoardUpdateChannel, IssueReward>(key, &IssueReward { reward: -50.0 }); // arbitrarily negative reward
-            } else {
+
+                // See if game is over, and restart
+                if players.list.len() == 1 {
+
+                }
+            } else { // eventually we should split rewards into two parts, pre-turn and post-turn
                 let mut net_worth = *money.worth;
                 let mut sum_other_worths = 0;
 
-                tiles.iter().for_each(|(_, relinquish_tile, _, _)| {
+                tiles.iter().for_each(|(_, relinquish_tile, _, _, server_side)| {
                     if *relinquish_tile.owner == Some(entity.to_bits()) {
-                        net_worth += (1.5 * *relinquish_tile.cost as f32).ceil() as i32;
+                        net_worth += ((1.5 + *server_side.probability) * *relinquish_tile.cost as f32).ceil() as i32;
                     } else {
-                        sum_other_worths += (1.5 * *relinquish_tile.cost as f32).ceil() as i32;
+                        sum_other_worths += ((1.5 + *server_side.probability) * *relinquish_tile.cost as f32).ceil() as i32;
                     }
                 });
 
@@ -130,7 +135,7 @@ pub fn next_turn(
             *position.tile = spaces.list[property].to_bits();
         }
 
-        let (_property, tile, corner, chance) = tiles.get(Entity::from_bits(*position.tile)).expect("Current player is sitting on an unknown tile");
+        let (_property, tile, corner, chance, _) = tiles.get(Entity::from_bits(*position.tile)).expect("Current player is sitting on an unknown tile");
         
         // TEMPORARY COST SPACE CODE
         if *tile.owner != None && *tile.owner != Some(token.to_bits()) {
@@ -143,7 +148,7 @@ pub fn next_turn(
         // TEMPORARY ACTION SPACE CODE, MONO ACTIONS ONLY
         action_space.push(Action::None);
         if !tiles.iter().filter(|x| *x.1.owner == Some(token.to_bits()))
-            .collect::<Vec<(Entity, &Tile, Option<&Corner>, Option<&Chance>)>>().is_empty() { action_space.push(Action::Sell); }
+            .collect::<Vec<(Entity, &Tile, Option<&Corner>, Option<&Chance>, &ServerSide)>>().is_empty() { action_space.push(Action::Sell); }
         if *money.worth >= 0 && *tile.tier == Tier::None && corner.is_none() && chance.is_none() { action_space.push(Action::Purchase); }
         // END TEMPORARY ACTION SPACE
 

@@ -1,9 +1,9 @@
 use bevy::prelude::*;
-use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, huber_loss, Optimizer}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
-use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable, IssueReward}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
+use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, huber_loss, Optimizer, SaveToNpz}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
+use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable, IssueReward, EndGame}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
 use naia_bevy_client::{events::MessageEvents, Client};
 use rand::{prelude::Distribution, seq::SliceRandom};
-use crate::SQUARES;
+use crate::{SQUARES, GameState, ClientResources};
 
 const PLAYERS: usize = 4;
 
@@ -19,22 +19,26 @@ type Device = Cpu;
 
 type QModel = SplitInto<(
     ( // action type head
-        (dfdx::prelude::Linear<STATE, 96>, ReLU),
+        (dfdx::prelude::Linear<STATE, 192>, ReLU),
+        (dfdx::prelude::Linear<192, 96>, ReLU),
         dfdx::prelude::Linear<96, ACTION>,
     ),
     ( // property head
-        (dfdx::prelude::Linear<STATE, 96>, ReLU),
+        (dfdx::prelude::Linear<STATE, 192>, ReLU),
+        (dfdx::prelude::Linear<192, 96>, ReLU),
         dfdx::prelude::Linear<96, SQUARES>,
     ),
 )>;
 
 type QModule = SplitInto<( // copy of QModel to match output of build_module
     ( // prelude::Linear becomes modules::Linear, we need more Generics
-        (Linear<STATE, 96, f32, Device>, ReLU),
+        (Linear<STATE, 192, f32, Device>, ReLU),
+        (Linear<192, 96, f32, Device>, ReLU),
         Linear<96, ACTION, f32, Device>,
     ),
     (
-        (Linear<STATE, 96, f32, Device>, ReLU),
+        (Linear<STATE, 192, f32, Device>, ReLU),
+        (Linear<192, 96, f32, Device>, ReLU),
         Linear<96, SQUARES, f32, Device>,
     ),
 )>;
@@ -76,11 +80,13 @@ pub fn add_stateful(world: &mut World) { // &mut World makes exclusive, first st
 
 pub fn message_event( // action picker
     mut stateful: NonSendMut<StatefulInformation>,
+    info: Res<ClientResources>,
 
     tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
     tokens: Query<(Entity, &mut Money, &Position, &ServerPlayer), (Without<Tile>, Without<Corner>, Without<Chance>)>,
 
     mut event_reader: EventReader<MessageEvents>,
+    mut game_state: ResMut<NextState<GameState>>,
     mut client: Client
 ) {
     for events in event_reader.iter() {
@@ -109,14 +115,15 @@ pub fn message_event( // action picker
             } else { // exploit.
                 println!("Exploiting, epsilon {}", stateful.epsilon);
                 // Query state and create action masks
-                let mut action_selection_mask = [0.0; SQUARES]; // maybe make this 0/1
+                let mut action_selection_mask = [0.0; SQUARES];
                 for (_, tile, _, _, server_side) in &tiles {
                     if *tile.owner == Some(stateful.entity) {
                         action_selection_mask[*server_side.index] = 1.0;
                     }
                 }
                 println!("Squares mask: {:?}", action_selection_mask);
-                let action_selection_mask = stateful.device.tensor(action_selection_mask.map(|v: f32| v.log10()));
+                let action_selection_mask = 
+                    stateful.device.tensor(action_selection_mask.map(|v: f32| v.log10()));
 
                 let mut action_type_mask = [0.0; ACTION];
                 for action in turn.available_actions {
@@ -127,7 +134,8 @@ pub fn message_event( // action picker
                     }
                 }
                 println!("Actions mask: {:?}", action_type_mask);
-                let action_type_mask = stateful.device.tensor(action_type_mask.map(|v: f32| v.log10()));
+                let action_type_mask = 
+                    stateful.device.tensor(action_type_mask.map(|v: f32| v.log10()));
 
                 let state_tensor = stateful.device.tensor(state);
                 let (action_type, action_selection) = 
@@ -172,8 +180,8 @@ pub fn message_event( // action picker
             let entity = stateful.entity;
             if let Some(transition) = stateful.experience.last_mut() {
                 println!("Received reward {}", issued.reward);
-                transition.1 = issued.reward;
-                transition.3 = Some(get_state(&tiles, &tokens, entity));
+                transition.1 = issued.reward; // +=
+                transition.3 = Some(get_state(&tiles, &tokens, entity)); // only on next turn?
             }
 
             if stateful.experience.len() > BATCH {
@@ -188,6 +196,14 @@ pub fn message_event( // action picker
             } else {
                 stateful.steps += 1;
             }
+        }
+
+        for _ in events.read::<BoardUpdateChannel, EndGame>() {
+            stateful.steps = 0;
+            stateful.target = stateful.model.clone();
+            println!("Saving model");
+            stateful.model.save(format!("models/{}", info.name)).expect("Couldn't save model to .npz");
+            game_state.set(GameState::Awaiting);
         }
     }
 }
@@ -292,8 +308,8 @@ impl StatefulInformation {
             (self.device.tensor(target_predictions.0), self.device.tensor(target_predictions.1));
 
         let losses = 
-            (huber_loss(predictions.0, target_predictions.0, 0.5), // test different deltas
-            huber_loss(predictions.1, target_predictions.1, 0.5));
+            (huber_loss(predictions.0, target_predictions.0, 1.0), // test different deltas
+            huber_loss(predictions.1, target_predictions.1, 1.0));
         let loss = (losses.0 + losses.1).backward(); // this may become an issue?
 
         self.optimizer.update(&mut self.model, &loss).expect("Updating failed");

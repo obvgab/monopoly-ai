@@ -8,4 +8,4 @@ bevy = { version = "0.10" }
 rand = { version = "0.8" }
 naia-bevy-client = { version = "0.20", features = ["transport_webrtc"] }
 monai_store = { path = "../../store" }
-dfdx = { version = "0.11.1" }
+dfdx = { version = "0.11.1", features = ["numpy"] }

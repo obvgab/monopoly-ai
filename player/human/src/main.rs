@@ -8,7 +8,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(ClientPlugin::new(ClientConfig::default(), protocol_builder()))
-        .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin::default()) // Eventually replace when inspector is unnecessary
+        .add_plugin(bevy_egui::EguiPlugin)
 
         .insert_resource(control::StatefulInformation {
             is_connected: false,
