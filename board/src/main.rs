@@ -39,7 +39,8 @@ fn main() {
             (
                 message::message_receive,
                 message::next_turn,
-                message::reward_player
+                message::reward_player,
+                message::bankrupt_player,
             )
             .in_set(OnUpdate(state::GameState::InGame))
         )
@@ -56,8 +57,14 @@ fn main() {
         )
         .add_startup_system(server::initialize_server)
 
+        .add_system(
+            state::auto_reset
+                .in_set(OnUpdate(state::GameState::AutoReset))
+        )
+
         .add_event::<message::AwardPlayer>()
         .add_event::<message::NextTurn>()
+        .add_event::<message::BankruptPlayer>()
 
         .run();
 }

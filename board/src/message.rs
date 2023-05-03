@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use rand::Rng;
-use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward, Ready}, tile::{Chance, Tile, Corner, Tier, ServerSide}, player::{Money, Position, Action}};
+use monai_store::{transfer::{Forfeit, PlayerActionChannel, BuyOwnable, SellOwnable, EndTurn, BeginTurn, BoardUpdateChannel, IssueReward, Ready, EndGame}, tile::{Chance, Tile, Corner, Tier, ServerSide}, player::{Money, Position, Action}};
 use naia_bevy_server::{events::MessageEvents, Server, UserKey};
-use crate::state::{Players, Tiles};
+use crate::{state::{Players, Tiles, GameState}, menu::BoardConfiguration};
 
 pub fn message_receive(
     mut players: ResMut<Players>,
@@ -60,40 +60,36 @@ pub fn message_receive(
 
 pub struct NextTurn(pub Option<UserKey>);
 pub struct AwardPlayer(pub Entity, pub i32);
+pub struct BankruptPlayer(pub UserKey);
 
 pub fn next_turn(
-    mut players: ResMut<Players>,
+    players: ResMut<Players>,
     spaces: Res<Tiles>,
+    configuration: Res<BoardConfiguration>,
+    mut game_state: ResMut<NextState<GameState>>,
 
     mut event_reader: EventReader<NextTurn>,
-    mut event_writer: EventWriter<AwardPlayer>,
-    mut tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
+    mut award_writer: EventWriter<AwardPlayer>,
+    mut bankrupt_writer: EventWriter<BankruptPlayer>,
+
+    tiles: Query<(Entity, &Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
     mut tokens: Query<(Entity, &mut Money, &mut Position), (Without<Tile>, Without<Corner>, Without<Chance>)>,
 
-    mut server: Server,
-    mut commands: Commands,
+    mut server: Server
 ) {
     for NextTurn(last_player) in event_reader.iter() {
         if let Some(key) = last_player {
             let (entity, money, _) = tokens.get(players.list[key]).expect("Last player is missing");
 
-            if *money.worth < 0 { // bankruptcy handling
-                let entity_bits = players.list.remove(&key).expect("Non existant player on channel").to_bits();
-                players.name.remove(&key);
-    
-                tiles.iter_mut().for_each(|(_, mut relinquish_tile, _, _, _)| {
-                    if *relinquish_tile.owner == Some(entity_bits) {
-                        *relinquish_tile.owner = None;
-                        *relinquish_tile.tier = Tier::None;
-                    }
-                });
-    
-                commands.get_entity(Entity::from_bits(entity_bits)).expect("Non existant player on channel").despawn_recursive();
-                server.send_message::<BoardUpdateChannel, IssueReward>(key, &IssueReward { reward: -50.0 }); // arbitrarily negative reward
+            if *money.worth < 0 {
+                bankrupt_writer.send(BankruptPlayer(*key));
 
-                // See if game is over, and restart
-                if players.list.len() == 1 {
-
+                if players.list.len() - 1 == 1 {
+                    server.send_message::<BoardUpdateChannel, IssueReward>(
+                        players.list.keys().last().expect("No last player"), &IssueReward { reward: 1000.0 });
+                    server.broadcast_message::<BoardUpdateChannel, EndGame>(&EndGame);
+                    game_state.set(if configuration.auto_reset { GameState::AutoReset } else { GameState::Menu });
+                    return;
                 }
             } else { // eventually we should split rewards into two parts, pre-turn and post-turn
                 let mut net_worth = *money.worth;
@@ -112,12 +108,16 @@ pub fn next_turn(
                     sum_other_worths += *money.worth;
                 });
 
-                server.send_message::<BoardUpdateChannel, IssueReward>( // reward is our share of the total worth in the game
+                server.send_message::<BoardUpdateChannel, IssueReward>(
                     key, &IssueReward { reward: (net_worth as f32) / sum_other_worths as f32});
             }
         }
         
-        // Check
+        if spaces.total_turns >= 100 { // stalemate
+            server.broadcast_message::<BoardUpdateChannel, EndGame>(&EndGame);
+            game_state.set(if configuration.auto_reset { GameState::AutoReset } else { GameState::Menu });
+            return;
+        }
 
         let (token, mut money, mut position) = tokens.get_mut(*players.current_player_entity()).expect("Current player could not be found between turns");
 
@@ -139,7 +139,7 @@ pub fn next_turn(
         
         // TEMPORARY COST SPACE CODE
         if *tile.owner != None && *tile.owner != Some(token.to_bits()) {
-            event_writer.send(AwardPlayer(Entity::from_bits(tile.owner.unwrap()), *tile.cost)); // arbitrarily changing to not / 10
+            award_writer.send(AwardPlayer(Entity::from_bits(tile.owner.unwrap()), *tile.cost)); // arbitrarily changing to not / 10
             *money.worth -= *tile.cost; // arbitrarily changing to not / 10 to avoid stalemate
         }
         // END TEMPORARY COST SPACE
@@ -166,5 +166,34 @@ pub fn reward_player(
 ) {
     for AwardPlayer(entity, amount) in event_reader.iter() {
         *money_query.get_mut(*entity).expect("Attempted to award non-existant entity").worth += amount;
+    }
+}
+
+pub fn bankrupt_player(
+    mut players: ResMut<Players>,
+
+    mut event_reader: EventReader<BankruptPlayer>,
+
+    mut tiles: Query<(Entity, &mut Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
+
+    mut server: Server,
+    mut commands: Commands,
+) {
+    for BankruptPlayer(key) in event_reader.iter() {
+        let entity = players.list.remove(&key).expect("Non existant player on channel");
+        let entity_bits = entity.to_bits();
+        players.name.remove(&key);
+
+        tiles.iter_mut().for_each(|(_, mut relinquish_tile, _, _, _)| {
+            if *relinquish_tile.owner == Some(entity_bits) {
+                *relinquish_tile.owner = None;
+                *relinquish_tile.tier = Tier::None;
+            }
+        });
+
+        players.bankrupt.push(*key);
+        
+        commands.get_entity(entity).expect("Non existant player on channel").despawn_recursive();
+        server.send_message::<BoardUpdateChannel, IssueReward>(key, &IssueReward { reward: -1000.0 });
     }
 }

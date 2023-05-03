@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, huber_loss, Optimizer, SaveToNpz}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
+use dfdx::{optim::{Adam, AdamConfig}, prelude::{SplitInto, modules::Linear, ReLU, DeviceBuildExt, ZeroGrads, Module, huber_loss, Optimizer, SaveToNpz, LoadFromNpz}, tensor::{Cpu, TensorFrom, Trace}, tensor_ops::{SelectTo, Backward}};
 use monai_store::{transfer::{BeginTurn, BoardUpdateChannel, PlayerActionChannel, SendPlayer, EndTurn, BuyOwnable, SellOwnable, IssueReward, EndGame}, tile::{Tile, Corner, Chance, ServerSide}, player::{Money, Position, ServerPlayer, Action}};
 use naia_bevy_client::{events::MessageEvents, Client};
 use rand::{prelude::Distribution, seq::SliceRandom};
@@ -61,9 +61,14 @@ type Transition = (
     Option<[f32; STATE]> // next state (if None, means END)
 );
 
-pub fn add_stateful(world: &mut World) { // &mut World makes exclusive, first startup system. Stateful should always exist
+pub fn add_stateful(
+    world: &mut World
+) { // &mut World makes exclusive, first startup system. Stateful should always exist
     let dev = Device::default();
-    let model = dev.build_module::<QModel, f32>();
+    let mut model = dev.build_module::<QModel, f32>();
+    if let Some(info) = world.get_resource::<ClientResources>() {
+        model.load(info.model_path.clone()).expect("Could not load model from .npz");
+    }
     let optim = Adam::new(&model, AdamConfig::default());
 
     world.insert_non_send_resource(StatefulInformation {
@@ -237,6 +242,17 @@ pub fn get_state(
             }
 
             location.expect("Could not find player position") as i32
+        }
+    }
+    // swap player index with our player so it can keep track between sessions
+    for (_, _, _, server_side) in tokens {
+        if *server_side.id == owner {
+            let current_initial = (players[0], players[1]);
+            players[0] = players[*server_side.index * 2];
+            players[1] = players[*server_side.index * 2 + 1];
+
+            players[*server_side.index * 2] = current_initial.0;
+            players[*server_side.index * 2 + 1] = current_initial.1;
         }
     }
 

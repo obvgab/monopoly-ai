@@ -1,8 +1,9 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use naia_bevy_server::{Server, CommandsExt};
+use naia_bevy_server::{Server, CommandsExt, UserKey};
+use std::collections::HashMap;
 use rand::Rng;
 use crate::{menu::BoardConfiguration, state::{Tiles, Players, Code}, SQUARE_SIZE};
-use monai_store::{tile::{ServerSide, Group, Chance, Corner, Tile, Tier}, player::{Position, ServerPlayer}, transfer::{StartGame, BoardUpdateChannel}};
+use monai_store::{tile::{ServerSide, Group, Chance, Corner, Tile, Tier}, player::{Position, ServerPlayer, Money}, transfer::{StartGame, BoardUpdateChannel}};
 
 pub fn generate_board(
     code: Res<Code>,
@@ -100,6 +101,7 @@ pub fn initialize_players(
 
     for (index, entity) in players.list.values().enumerate() {
         commands.get_entity(*entity).expect("Could not find a valid player in initialization")
+            .insert(Money::new(1000))
             .insert(Position::new(spaces.list[0].to_bits()))
             .insert(ServerPlayer::new(entity.to_bits(), index));
     }
@@ -107,4 +109,37 @@ pub fn initialize_players(
     server.broadcast_message::<BoardUpdateChannel, StartGame>(&StartGame);
 }
 
-pub fn reset_game() {}
+pub fn reset_game(
+    mut spaces: ResMut<Tiles>,
+    mut players: ResMut<Players>,
+    code: Res<Code>,
+
+    mut commands: Commands,
+    mut server: Server,
+) {
+    {
+        let last_player = *players.list.keys().last().expect("No last player when restarting");
+        commands.get_entity(players.list.remove(&last_player)
+            .expect("Last player is present without entity")).expect("Last player entity is not found").despawn_recursive();
+
+        players.bankrupt.push(last_player);
+    }
+
+    for entity in players.list.values() {
+        commands.get_entity(*entity).expect("Couldn't find listed entity").despawn_recursive();
+    }
+    players.list = HashMap::new();
+    spaces.list = vec![];
+
+    for key in players.bankrupt.drain(..).collect::<Vec<UserKey>>().into_iter() {
+        let entity = commands
+            .spawn_empty()
+            .enable_replication(&mut server)
+            .id();
+
+        server.room_mut(&code.game_room).add_entity(&entity);
+        players.list.insert(key, entity); // mimic join event
+
+        info!("Respawned entity for {}", players.name[&key]);
+    }
+}

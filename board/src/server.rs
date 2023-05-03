@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 use naia_bevy_server::{Server, events::{AuthEvents, ConnectEvent, TickEvent, DisconnectEvent}, transport::webrtc, CommandsExt};
-use monai_store::{Auth, player::{Money}, transfer::{SendPlayer, BoardUpdateChannel}};
+use monai_store::{Auth, transfer::{SendPlayer, BoardUpdateChannel}};
 use crate::{state::{Players, Code, Tiles}, menu::BoardConfiguration};
 
 pub fn initialize_server(
@@ -18,10 +18,10 @@ pub fn initialize_server(
     server.listen(socket);
     
     // Make this random later
-    commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new(), ready: 0 });
+    commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new(), ready: 0, bankrupt: vec![] });
     commands.insert_resource(Code { value: "MONAI".to_string(), game_room: server.make_room().key() });
-    commands.insert_resource(BoardConfiguration { polygonal_board: false, corners: 4, squares: 40 });
-    commands.insert_resource(Tiles { list: vec![], tested_probability: vec![], groups: vec![] });
+    commands.insert_resource(BoardConfiguration { polygonal_board: false, corners: 4, squares: 40, auto_reset: false });
+    commands.insert_resource(Tiles { list: vec![], tested_probability: vec![], groups: vec![], total_turns: 0 });
     
     info!("Naia server initialized");
 }
@@ -83,7 +83,6 @@ pub fn connect_player(
         let entity = commands
             .spawn_empty()
             .enable_replication(&mut server)
-            .insert(Money::new(1000))
             .id();
 
         server.room_mut(&code.game_room).add_entity(&entity);

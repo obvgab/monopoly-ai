@@ -7,6 +7,7 @@ pub struct BoardConfiguration {
     pub polygonal_board: bool,
     pub corners: i32,
     pub squares: i32,
+    pub auto_reset: bool
 }
 
 pub fn gui(
@@ -28,7 +29,10 @@ pub fn gui(
         ui.label("Board");
         ui.separator();
 
-        ui.checkbox(&mut configuration.polygonal_board, "Polygon");
+        ui.horizontal(|row| {
+            row.checkbox(&mut configuration.polygonal_board, "Polygon");
+            row.checkbox(&mut configuration.auto_reset, "Auto-Reset");
+        });
         if configuration.polygonal_board {
             ui.add(egui::Slider::new(&mut configuration.corners, 4..=360).text("Corners"));
         }

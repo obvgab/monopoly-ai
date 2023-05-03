@@ -14,7 +14,7 @@ pub struct Players {
     pub list: HashMap<UserKey, Entity>,
     pub current: Option<UserKey>,
     pub name: HashMap<UserKey, String>,
-    // connected by not alive players
+    pub bankrupt: Vec<UserKey>,
     pub ready: usize
 }
 
@@ -23,13 +23,15 @@ pub struct Tiles {
     pub list: Vec<Entity>,
     pub tested_probability: Vec<i32>,
     pub groups: Vec<Vec<Entity>>,
+    pub total_turns: usize
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum GameState {
     #[default]
     Menu,
-    InGame
+    InGame,
+    AutoReset
 }
 
 impl Players { // we might not **need** to deref here
@@ -63,4 +65,10 @@ impl Players { // we might not **need** to deref here
 
         self.current = Some(counter[0]);
     }
+}
+
+pub fn auto_reset( // just funnel into next game
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    game_state.set(GameState::InGame);
 }

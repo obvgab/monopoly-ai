@@ -10,7 +10,7 @@ pub const SQUARES: usize = 40;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 4 {
-        println!("-- {{ip:port}} {{auth}} {{name}}");
+        println!("-- {{ip:port}} {{auth}} {{name}} Option<{{model}}>");
         return;
     }
 
@@ -19,7 +19,7 @@ fn main() {
         .add_plugin(ClientPlugin::new(ClientConfig::default(), protocol_builder()))
         .add_startup_system(model::add_stateful)
 
-        .insert_resource(ClientResources { url: args[1].clone(), code: args[2].clone(), name: args[3].clone() })
+        .insert_resource(ClientResources { url: args[1].clone(), code: args[2].clone(), name: args[3].clone(), model_path: args[4].clone() })
         .add_startup_system(connect_client)
 
         .add_state::<GameState>()
@@ -39,7 +39,8 @@ fn main() {
 pub struct ClientResources {
     pub url: String,
     pub code: String,
-    pub name: String
+    pub name: String,
+    pub model_path: String
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
