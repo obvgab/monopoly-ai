@@ -8,6 +8,7 @@ mod state;
 mod menu;
 mod generator;
 mod message;
+mod render;
 
 const SQUARE_SIZE: f32 = 720.0;
 
@@ -70,7 +71,15 @@ fn main() {
 
         .add_event::<message::AwardPlayer>()
         .add_event::<message::NextTurn>()
-        .add_event::<message::BankruptPlayer>();
+        .add_event::<message::BankruptPlayer>()
+    
+        .insert_resource(ClearColor(Color::hex("#11111b").expect("This should be a valid hex value")))
+        .add_systems(
+            (
+                render::render_position,
+                render::render_owner
+            )
+        );
 
     // if args.len() != 1 || args[0] != "headless" {
     //     app.add_startup_system(init_camera);

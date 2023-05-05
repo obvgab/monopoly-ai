@@ -35,7 +35,7 @@ pub fn generate_board(
                         shape::Quad::new(Vec2::new(scale, scale * 2.0)).into()
                     }
                 ).into(),
-                material: materials.add(ColorMaterial::from(Color::BLACK)),
+                material: materials.add(ColorMaterial::from(Color::hex("#1e1e2e").expect("Should be a hex color"))),
                 transform: reference_transform,
                 ..default()
             }).enable_replication(&mut server).id();
@@ -55,6 +55,8 @@ pub fn initialize_players(
 
     mut spaces: ResMut<Tiles>,
     mut players: ResMut<Players>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 
     mut server: Server,
     mut commands: Commands
@@ -102,7 +104,19 @@ pub fn initialize_players(
         commands.get_entity(*entity).expect("Could not find a valid player in initialization")
             .insert(Money::new(1000))
             .insert(Position::new(spaces.list[0].to_bits()))
-            .insert(ServerPlayer::new(entity.to_bits(), index));
+            .insert(ServerPlayer::new(entity.to_bits(), index))
+            .insert(MaterialMesh2dBundle {
+                mesh: meshes.add(
+                    shape::Circle::new(5.0).into()
+                ).into(),
+                material: materials.add(ColorMaterial::from(Color::hex(match index % 4 {
+                    0 => "#cba6f7",
+                    1 => "#eba0ac",
+                    2 => "#fab387",
+                    _ => "#cdd6f4"
+                }).expect("Should be a hex color"))),
+                ..default()
+            });
     }
 
     server.broadcast_message::<BoardUpdateChannel, StartGame>(&StartGame);

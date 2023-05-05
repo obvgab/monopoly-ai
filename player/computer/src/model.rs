@@ -80,7 +80,7 @@ pub fn add_stateful(
         target: model.clone(), // target as first argument to avoid borrow checker issues
         model: model,
         optimizer: optim, // We remove gradients since it annihilates the borrow checker
-        epsilon: 0.8f32,
+        epsilon: 0.3f32,
         experience: vec![],
         steps: 0
     });

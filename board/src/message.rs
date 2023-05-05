@@ -72,14 +72,14 @@ pub fn next_turn(
     mut award_writer: EventWriter<AwardPlayer>,
     mut bankrupt_writer: EventWriter<BankruptPlayer>,
 
-    tiles: Query<(Entity, &Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
-    mut tokens: Query<(Entity, &mut Money, &mut Position), (Without<Tile>, Without<Corner>, Without<Chance>)>,
+    tiles: Query<(Entity, &Transform, &Tile, Option<&Corner>, Option<&Chance>, &ServerSide), (Without<Money>, Without<Position>)>,
+    mut tokens: Query<(Entity, &mut Transform, &mut Money, &mut Position), (Without<Tile>, Without<Corner>, Without<Chance>)>,
 
     mut server: Server
 ) {
     for NextTurn(last_player) in event_reader.iter() {
         if let Some(key) = last_player {
-            let (entity, money, _) = tokens.get(players.list[key]).expect("Last player is missing");
+            let (entity, _, money, _) = tokens.get(players.list[key]).expect("Last player is missing");
 
             if *money.worth < 0 {
                 bankrupt_writer.send(BankruptPlayer(*key));
@@ -95,7 +95,7 @@ pub fn next_turn(
                 let mut net_worth = *money.worth;
                 let mut sum_other_worths = 0;
 
-                tiles.iter().for_each(|(_, relinquish_tile, _, _, server_side)| {
+                tiles.iter().for_each(|(_, _, relinquish_tile, _, _, server_side)| {
                     if *relinquish_tile.owner == Some(entity.to_bits()) {
                         net_worth += ((1.5 + *server_side.probability) * *relinquish_tile.cost as f32).ceil() as i32;
                     } else {
@@ -103,7 +103,7 @@ pub fn next_turn(
                     }
                 });
 
-                tokens.iter().for_each(|(other_entity, money, _)| {
+                tokens.iter().for_each(|(other_entity, _, money, _)| {
                     if other_entity == entity { return; }
                     sum_other_worths += *money.worth;
                 });
@@ -122,7 +122,7 @@ pub fn next_turn(
             spaces.total_turns += 1;
         }
 
-        let (token, mut money, mut position) = tokens.get_mut(*players.current_player_entity()).expect("Current player could not be found between turns");
+        let (token, _, mut money, mut position) = tokens.get_mut(*players.current_player_entity()).expect("Current player could not be found between turns");
 
         {
             let mut property = spaces.list.iter().position(|entity| entity.to_bits() == *position.tile).expect("Couldn't find current position of player in Vec form");
@@ -138,7 +138,7 @@ pub fn next_turn(
             *position.tile = spaces.list[property].to_bits();
         }
 
-        let (_property, tile, corner, chance, _) = tiles.get(Entity::from_bits(*position.tile)).expect("Current player is sitting on an unknown tile");
+        let (_, _, tile, corner, chance, _) = tiles.get(Entity::from_bits(*position.tile)).expect("Current player is sitting on an unknown tile");
         
         // TEMPORARY COST SPACE CODE
         if *tile.owner != None && *tile.owner != Some(token.to_bits()) {
@@ -150,8 +150,8 @@ pub fn next_turn(
         let mut action_space: Vec<Action> = vec![];
         // TEMPORARY ACTION SPACE CODE, MONO ACTIONS ONLY
         action_space.push(Action::None);
-        if !tiles.iter().filter(|x| *x.1.owner == Some(token.to_bits()))
-            .collect::<Vec<(Entity, &Tile, Option<&Corner>, Option<&Chance>, &ServerSide)>>().is_empty() { action_space.push(Action::Sell); }
+        if !tiles.iter().filter(|x| *x.2.owner == Some(token.to_bits()))
+            .collect::<Vec<(Entity, &Transform, &Tile, Option<&Corner>, Option<&Chance>, &ServerSide)>>().is_empty() { action_space.push(Action::Sell); }
         if *money.worth >= 0 && *tile.tier == Tier::None && corner.is_none() && chance.is_none() { action_space.push(Action::Purchase); }
         // END TEMPORARY ACTION SPACE
 
