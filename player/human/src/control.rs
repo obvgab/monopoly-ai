@@ -1,6 +1,6 @@
 use bevy::{prelude::*};
 use bevy_egui::{egui, EguiContexts};
-use monai_store::{Auth, transfer::{BoardUpdateChannel, BeginTurn, SendPlayer, StartGame, PlayerActionChannel, BuyOwnable, SellOwnable, Forfeit, EndTurn}, player::{Action, Money, Position, ServerPlayer}, tile::{Tile, Chance, Corner, ServerSide}};
+use monai_store::{Auth, transfer::{BoardUpdateChannel, BeginTurn, SendPlayer, StartGame, PlayerActionChannel, BuyOwnable, SellOwnable, Forfeit, EndTurn, EndGame, Ready}, player::{Action, Money, Position, ServerPlayer}, tile::{Tile, Chance, Corner, ServerSide}};
 use naia_bevy_client::{Client, transport::webrtc, events::MessageEvents};
 
 #[derive(Resource)]
@@ -14,6 +14,7 @@ pub struct StatefulInformation {
     pub can_end: bool,
     pub entity: u64,
     pub started: bool,
+    pub ready: bool,
 }
 
 pub fn gui( // separate this into multiple functions later
@@ -55,8 +56,14 @@ pub fn gui( // separate this into multiple functions later
                 let socket = webrtc::Socket::new(&stateful.url, client.socket_config());
                 client.connect(socket);
             }
-        } else if !stateful.started || stateful.entity == 0 {
+        } else if !stateful.started || stateful.entity == 0 || !stateful.ready {
             ui.label("Waiting for game...");
+            if ui.button("Ready").clicked() {
+                if !stateful.ready {
+                    client.send_message::<PlayerActionChannel, Ready>(&Ready);
+                }
+                stateful.ready = true;
+            }
         } else {
             let (_entity, money, position, _server_entity) = {
                 let mut last: Option<(Entity, &Money, &Position, &ServerPlayer)> = None;
@@ -95,7 +102,7 @@ pub fn gui( // separate this into multiple functions later
 
             ui.separator();
             ui.horizontal(|row| {
-                if row.button("Forfeit").clicked() {
+                if row.button("Forfeit").clicked() { // fix lose event
                     client.send_message::<PlayerActionChannel, Forfeit>(&Forfeit);
                 }
                 if stateful.can_end && row.button("End Turn").clicked() {
@@ -135,8 +142,14 @@ pub fn begin_turn(
             stateful.entity = entity.id;
         }
 
-        for _start in events.read::<BoardUpdateChannel, StartGame>() {
+        for _ in events.read::<BoardUpdateChannel, StartGame>() {
             stateful.started = true;
+        }
+
+        for _ in events.read::<BoardUpdateChannel, EndGame>() {
+            stateful.started = false;
+            stateful.ready = false;
+            stateful.entity = 0;
         }
     }
 }

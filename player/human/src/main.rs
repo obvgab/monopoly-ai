@@ -19,7 +19,8 @@ fn main() {
             can_sell: false,
             can_end: false,
             entity: 0,
-            started: false
+            started: false,
+            ready: false,
         })
         .add_systems(
             (

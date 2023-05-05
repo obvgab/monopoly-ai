@@ -222,7 +222,7 @@ pub fn get_state(
     tokens: &Query<(Entity, &mut Money, &Position, &ServerPlayer), (Without<Tile>, Without<Corner>, Without<Chance>)>,
 
     owner: u64
-) -> [f32; SQUARES + (PLAYERS * 2)] {
+) -> [f32; SQUARES + (PLAYERS * 2)] { // handle end of the game for just one player
     let mut players = [0; PLAYERS * 2];
     for (_, money, position, server_side) in tokens {
         players[*server_side.index * 2] = {
