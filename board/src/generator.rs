@@ -3,7 +3,7 @@ use naia_bevy_server::{Server, CommandsExt, UserKey};
 use std::collections::HashMap;
 use rand::Rng;
 use crate::{menu::BoardConfiguration, state::{Tiles, Players, Code}, SQUARE_SIZE};
-use monai_store::{tile::{ServerSide, Group, Chance, Corner, Tile, Tier}, player::{Position, ServerPlayer, Money}, transfer::{StartGame, BoardUpdateChannel}};
+use monai_store::{tile::{ServerSide, Group, Chance, Corner, Tile, Tier}, player::{Position, ServerPlayer, Money}, transfer::{StartGame, BoardUpdateChannel, SendPlayer}};
 
 pub fn generate_board(
     code: Res<Code>,
@@ -25,7 +25,6 @@ pub fn generate_board(
 
     let mut reference_transform = Transform::from_xyz(x_start, y_start, 0.0);
 
-    commands.spawn(Camera2dBundle::default());
     for _rotation  in 0..configuration.corners {
         for tile in 0..(configuration.squares / configuration.corners) { 
             let entity = commands.spawn(MaterialMesh2dBundle {
@@ -110,36 +109,36 @@ pub fn initialize_players(
 }
 
 pub fn reset_game(
-    mut spaces: ResMut<Tiles>,
-    mut players: ResMut<Players>,
-    code: Res<Code>,
+    spaces: &mut ResMut<Tiles>,
+    players: &mut ResMut<Players>,
+    code: &Res<Code>,
 
-    mut commands: Commands,
-    mut server: Server,
+    commands: &mut Commands,
+    server: &mut Server,
 ) {
-    {
-        let last_player = *players.list.keys().last().expect("No last player when restarting");
-        commands.get_entity(players.list.remove(&last_player)
-            .expect("Last player is present without entity")).expect("Last player entity is not found").despawn_recursive();
-
-        players.bankrupt.push(last_player);
-    }
-
-    for entity in players.list.values() {
+    // Clear entities
+    for entity in players.list.values().chain(spaces.list.iter()) {
         commands.get_entity(*entity).expect("Couldn't find listed entity").despawn_recursive();
     }
+    
+    // Clear lists
     players.list = HashMap::new();
+    players.current = None;
+    spaces.groups = vec![];
+    spaces.tested_probability = vec![];
     spaces.list = vec![];
 
     for key in players.bankrupt.drain(..).collect::<Vec<UserKey>>().into_iter() {
         let entity = commands
             .spawn_empty()
-            .enable_replication(&mut server)
+            .enable_replication(server)
             .id();
 
         server.room_mut(&code.game_room).add_entity(&entity);
         players.list.insert(key, entity); // mimic join event
 
         info!("Respawned entity for {}", players.name[&key]);
+
+        server.send_message::<BoardUpdateChannel, SendPlayer>(&key, &SendPlayer { id: entity.to_bits() })
     }
 }

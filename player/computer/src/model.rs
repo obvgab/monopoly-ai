@@ -67,7 +67,10 @@ pub fn add_stateful(
     let dev = Device::default();
     let mut model = dev.build_module::<QModel, f32>();
     if let Some(info) = world.get_resource::<ClientResources>() {
-        model.load(info.model_path.clone()).expect("Could not load model from .npz");
+        if let Some(model_path) = info.model_path.clone() {
+            model.load(model_path).expect("Could not load model from .npz");
+            println!("Loaded model properly");
+        }
     }
     let optim = Adam::new(&model, AdamConfig::default());
 
@@ -77,7 +80,7 @@ pub fn add_stateful(
         target: model.clone(), // target as first argument to avoid borrow checker issues
         model: model,
         optimizer: optim, // We remove gradients since it annihilates the borrow checker
-        epsilon: 1f32,
+        epsilon: 0.8f32,
         experience: vec![],
         steps: 0
     });
@@ -207,8 +210,9 @@ pub fn message_event( // action picker
             stateful.steps = 0;
             stateful.target = stateful.model.clone();
             println!("Saving model");
-            stateful.model.save(format!("models/{}", info.name)).expect("Couldn't save model to .npz");
-            game_state.set(GameState::Awaiting);
+            stateful.model.save(format!("models/{}.npz", info.name)).expect("Couldn't save model to .npz");
+            stateful.entity = 0;
+            game_state.set(GameState::Despawning);
         }
     }
 }
@@ -346,4 +350,3 @@ pub fn read_entity(
 }
 
 // ? https://towardsdatascience.com/rainbow-dqn-the-best-reinforcement-learning-has-to-offer-166cb8ed2f86
-// RESTART GAME

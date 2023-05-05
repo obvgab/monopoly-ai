@@ -64,7 +64,7 @@ pub struct BankruptPlayer(pub UserKey);
 
 pub fn next_turn(
     players: ResMut<Players>,
-    spaces: Res<Tiles>,
+    mut spaces: ResMut<Tiles>,
     configuration: Res<BoardConfiguration>,
     mut game_state: ResMut<NextState<GameState>>,
 
@@ -116,7 +116,10 @@ pub fn next_turn(
         if spaces.total_turns >= 100 { // stalemate
             server.broadcast_message::<BoardUpdateChannel, EndGame>(&EndGame);
             game_state.set(if configuration.auto_reset { GameState::AutoReset } else { GameState::Menu });
+            spaces.total_turns = 0;
             return;
+        } else {
+            spaces.total_turns += 1;
         }
 
         let (token, mut money, mut position) = tokens.get_mut(*players.current_player_entity()).expect("Current player could not be found between turns");

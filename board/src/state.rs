@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use monai_store::transfer::{PlayerActionChannel, Finish};
 use std::collections::HashMap;
-use naia_bevy_server::{UserKey, RoomKey};
+use naia_bevy_server::{UserKey, RoomKey, events::MessageEvents, Server};
 
 #[derive(Resource)]
 pub struct Code {
@@ -15,7 +16,8 @@ pub struct Players {
     pub current: Option<UserKey>,
     pub name: HashMap<UserKey, String>,
     pub bankrupt: Vec<UserKey>,
-    pub ready: usize
+    pub ready: usize,
+    pub finish: usize,
 }
 
 #[derive(Resource)]
@@ -69,6 +71,34 @@ impl Players { // we might not **need** to deref here
 
 pub fn auto_reset( // just funnel into next game
     mut game_state: ResMut<NextState<GameState>>,
+    mut players: ResMut<Players>,
+    mut spaces: ResMut<Tiles>,
+    code: Res<Code>,
+
+    mut event_reader: EventReader<MessageEvents>,
+
+    mut commands: Commands,
+    mut server: Server,
 ) {
-    game_state.set(GameState::InGame);
+    while let Some(last_player) = players.list.keys().last() { // wont run after first iteration
+        let last_player = *last_player;
+        commands.get_entity(players.list.remove(&last_player)
+            .expect("Last player is present without entity")).expect("Last player entity is not found").despawn_recursive();
+
+        players.bankrupt.push(last_player);
+    }
+
+    for events in event_reader.iter() {
+        for _ in events.read::<PlayerActionChannel, Finish>() {
+            players.finish += 1;
+            info!("Player has finished despawning {}/{}", players.finish, players.bankrupt.len());
+            if players.finish == players.bankrupt.len() {
+                players.finish = 0;
+                info!("Resuming game, tile count {}", spaces.list.len());
+                crate::generator::reset_game(&mut spaces, &mut players, &code, &mut commands, &mut server);
+                info!("Generator finished, tile count {}", spaces.list.len());
+                game_state.set(GameState::InGame);
+            }
+        }
+    }
 }

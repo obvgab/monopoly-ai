@@ -42,6 +42,7 @@ pub fn protocol_builder() -> Protocol {
         .add_message::<transfer::EndTurn>()
         .add_message::<transfer::Forfeit>() // Realistically only available to human players
         .add_message::<transfer::Ready>()
+        .add_message::<transfer::Finish>()
 
         .add_message::<transfer::BeginTurn>()
         .add_message::<transfer::SendPlayer>()

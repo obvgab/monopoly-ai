@@ -18,7 +18,7 @@ pub fn initialize_server(
     server.listen(socket);
     
     // Make this random later
-    commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new(), ready: 0, bankrupt: vec![] });
+    commands.insert_resource(Players { list: HashMap::new(), current: None, name: HashMap::new(), ready: 0, bankrupt: vec![], finish: 0 });
     commands.insert_resource(Code { value: "MONAI".to_string(), game_room: server.make_room().key() });
     commands.insert_resource(BoardConfiguration { polygonal_board: false, corners: 4, squares: 40, auto_reset: false });
     commands.insert_resource(Tiles { list: vec![], tested_probability: vec![], groups: vec![], total_turns: 0 });
@@ -102,7 +102,7 @@ pub fn disconnect_player(
     mut commands: Commands
 ) {
     for DisconnectEvent(key, _user) in event_reader.iter() {
-        let entity = players.list.remove(key).expect("User not registered");
+        let entity = players.list.remove(key).expect("User has not been registered");
         let name = players.name.remove(key).expect("User has no name");
         commands.get_entity(entity).expect("User entity already removed").despawn_recursive();
 

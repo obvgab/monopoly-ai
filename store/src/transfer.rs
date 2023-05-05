@@ -28,6 +28,9 @@ pub struct EndTurn;
 #[derive(Message)]
 pub struct Ready;
 
+#[derive(Message)]
+pub struct Finish;
+
 #[derive(Channel)]
 pub struct BoardUpdateChannel;
 
